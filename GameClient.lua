@@ -929,6 +929,7 @@ local function setInputActive(active)
 	else
 		inputBar.Visible = false
 		submitBtn.Visible = false
+		typingBox:ReleaseFocus()  -- CRITICAL: Release focus so WASD works again
 		typingBox.Text = ""
 		typingBuffer = ""
 		pendingWord = ""
@@ -1446,6 +1447,82 @@ if TypingUpdate then TypingUpdate.OnClientEvent:Connect(function(playerName, tex
 		updateLetterTiles(text)
 	end
 end) end
+
+-- ============ PLAYER COUNT BILLBOARDS (CLIENT-SIDE) ============
+-- Each client creates their own TextLabel with mobile/PC appropriate sizing
+
+local clientBillboards = {}  -- anchor -> label
+
+local function setupClientBillboards()
+	-- Find all existing CountAnchor parts
+	for _, obj in pairs(workspace:GetDescendants()) do
+		if obj.Name == "CountAnchor" and obj:IsA("BasePart") then
+			if not clientBillboards[obj] then
+				-- Create client-only BillboardGui (unique name per player)
+				local bbName = "PlayerCountClient_" .. player.UserId
+				local bb = obj:FindFirstChild(bbName)
+				if not bb then
+					bb = Instance.new("BillboardGui")
+					bb.Name = bbName
+					bb.Size = UDim2.new(0, 90, 0, 45)
+					bb.StudsOffset = Vector3.new(0, 1, 0)
+					bb.AlwaysOnTop = true
+					bb.MaxDistance = 80
+					bb.Adornee = obj
+					bb.Parent = obj
+				end
+
+				-- Create local TextLabel with mobile-aware sizing
+				local lbl = Instance.new("TextLabel")
+				lbl.Size = UDim2.new(1, 0, 1, 0)
+				lbl.BackgroundTransparency = 1
+				lbl.Font = Enum.Font.GothamBold
+				lbl.Text = "0/2"
+				lbl.TextSize = IS_MOBILE and 24 or 40
+				lbl.TextColor3 = Color3.fromRGB(0, 255, 128)
+				lbl.TextStrokeColor3 = Color3.fromRGB(0, 40, 20)
+				lbl.TextStrokeTransparency = 0.2
+				lbl.Parent = bb
+
+				clientBillboards[obj] = lbl
+			end
+		end
+	end
+end
+
+-- Setup initial billboards
+setupClientBillboards()
+
+-- Handle dynamically added anchors
+workspace.DescendantAdded:Connect(function(obj)
+	if obj.Name == "CountAnchor" and obj:IsA("BasePart") then
+		task.delay(0.1, setupClientBillboards)
+	end
+end)
+
+-- Listen for server updates - poll the server's BillboardGui attribute
+task.spawn(function()
+	while true do
+		for anchor, lbl in pairs(clientBillboards) do
+			if anchor and anchor.Parent then
+				local serverBB = anchor:FindFirstChild("PlayerCount")
+				if serverBB then
+					local count = serverBB:GetAttribute("playerCount") or 0
+					lbl.Text = count .. "/2"
+					-- Update color based on count
+					if count == 0 then
+						lbl.TextColor3 = Color3.fromRGB(100, 100, 100)
+					elseif count == 1 then
+						lbl.TextColor3 = Color3.fromRGB(255, 200, 50)
+					else
+						lbl.TextColor3 = Color3.fromRGB(0, 255, 128)
+					end
+				end
+			end
+		end
+		task.wait(0.1)
+	end
+end)
 
 -- ============ CLEANUP ============
 

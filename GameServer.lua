@@ -112,35 +112,20 @@ local function createGameInstance(locationName, seats, model)
 		bb.MaxDistance = 80
 		bb.Adornee = anchor
 		bb.Parent = anchor
-
-		local countLbl = Instance.new("TextLabel")
-		countLbl.Size = UDim2.new(1, 0, 1, 0)
-		countLbl.BackgroundTransparency = 1
-		countLbl.Font = Enum.Font.GothamBold
-		countLbl.Text = "0/2"
-		countLbl.TextSize = 24
-		countLbl.TextColor3 = Color3.fromRGB(0, 255, 128)
-		countLbl.TextStrokeColor3 = Color3.fromRGB(0, 40, 20)
-		countLbl.TextStrokeTransparency = 0.2
-		countLbl.Parent = bb
+		-- Set initial player count attribute
+		bb:SetAttribute("playerCount", 0)
 
 		game_inst.billboard = bb
-		game_inst.countLabel = countLbl
+		-- countLabel will be created by each client with their own size
 	end
 
 	setupBillboard()
 
 	function game_inst:updatePlayerCount()
-		if self.countLabel then
+		if self.billboard then
 			local count = #self.seatedPlayers
-			self.countLabel.Text = count .. "/2"
-			if count == 0 then
-				self.countLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
-			elseif count == 1 then
-				self.countLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
-			else
-				self.countLabel.TextColor3 = Color3.fromRGB(0, 255, 128)
-			end
+			-- Set attribute for clients to read
+			self.billboard:SetAttribute("playerCount", count)
 		end
 	end
 
