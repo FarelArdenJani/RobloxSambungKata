@@ -1,5 +1,5 @@
 -- GameClient - Sambung Kata (paste into StarterPlayerScripts as LocalScript)
--- Clean White UI | Rounded Panels | Mobile Friendly
+-- Clean White UI | Rounded Panels | Mobile Friendly | Custom In-Game Keyboard
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -38,6 +38,9 @@ local C = {
 	inputBorder= Color3.fromRGB(210, 210, 210),
 	overlay    = Color3.fromRGB(0, 0, 0),
 	shadow     = Color3.fromRGB(0, 0, 0),
+	keyBg      = Color3.fromRGB(255, 255, 255),
+	keyPress   = Color3.fromRGB(200, 200, 200),
+	keyboardBg = Color3.fromRGB(180, 180, 190),
 }
 
 -- Fonts
@@ -52,6 +55,7 @@ local F = {
 	chain   = Enum.Font.Gotham,
 	heart   = Enum.Font.GothamBold,
 	timer   = Enum.Font.GothamBold,
+	key     = Enum.Font.GothamBold,
 }
 
 -- ============ HELPERS ============
@@ -172,15 +176,12 @@ end
 
 -- ============ PUNCH ANIMATION ============
 
--- Find the right arm motor for R15 or R6
 local function findArmMotor(char)
-	-- R15: RightUpperArm has RightShoulder motor
 	local rua = char:FindFirstChild("RightUpperArm")
 	if rua then
 		local motor = rua:FindFirstChild("RightShoulder")
 		if motor and motor:IsA("Motor6D") then return motor, "R15" end
 	end
-	-- R6: Torso has Right Shoulder motor
 	local torso = char:FindFirstChild("Torso")
 	if torso then
 		local motor = torso:FindFirstChild("Right Shoulder")
@@ -189,15 +190,12 @@ local function findArmMotor(char)
 	return nil, nil
 end
 
--- Find the torso motor for flinch
 local function findTorsoMotor(char)
-	-- R15: UpperTorso has Waist motor
 	local ut = char:FindFirstChild("UpperTorso")
 	if ut then
 		local motor = ut:FindFirstChild("Waist")
 		if motor and motor:IsA("Motor6D") then return motor end
 	end
-	-- R6: HumanoidRootPart has RootJoint
 	local root = char:FindFirstChild("HumanoidRootPart")
 	if root then
 		local motor = root:FindFirstChild("RootJoint")
@@ -217,40 +215,22 @@ local function playPunchAnimation(attackerName, victimName, heartsLeft)
 	local attackerRoot = attackerChar:FindFirstChild("HumanoidRootPart")
 	if not victimRoot or not attackerRoot then return end
 
-	-- Brutality: 1 = light, 2 = medium, 3 = knockout
 	local brutal = heartsLeft <= 0 and 3 or (heartsLeft <= 1 and 2 or 1)
 
-	-- === ATTACKER: Swing right arm forward ===
 	local armMotor, rigType = findArmMotor(attackerChar)
 	if armMotor then
 		local origC0 = armMotor.C0
-		-- Wind up (pull arm back)
-		local windUp
-		if rigType == "R15" then
-			windUp = origC0 * CFrame.Angles(math.rad(60), 0, math.rad(20))
-		else
-			windUp = origC0 * CFrame.Angles(math.rad(60), 0, math.rad(20))
-		end
+		local windUp = origC0 * CFrame.Angles(math.rad(60), 0, math.rad(20))
 		tw(armMotor, {C0 = windUp}, 0.1)
-
-		-- Punch forward after wind up
 		task.delay(0.12, function()
-			local punchForward
-			if rigType == "R15" then
-				punchForward = origC0 * CFrame.Angles(math.rad(-100 - brutal * 10), 0, math.rad(-10))
-			else
-				punchForward = origC0 * CFrame.Angles(math.rad(-100 - brutal * 10), 0, math.rad(-10))
-			end
+			local punchForward = origC0 * CFrame.Angles(math.rad(-100 - brutal * 10), 0, math.rad(-10))
 			tw(armMotor, {C0 = punchForward}, 0.06, Enum.EasingStyle.Quad)
-
-			-- Return arm to normal
 			task.delay(0.4, function()
 				tw(armMotor, {C0 = origC0}, 0.3, Enum.EasingStyle.Quad)
 			end)
 		end)
 	end
 
-	-- === ATTACKER: Lean torso forward ===
 	local attackerTorso = findTorsoMotor(attackerChar)
 	if attackerTorso then
 		local origTorsoC0 = attackerTorso.C0
@@ -262,23 +242,19 @@ local function playPunchAnimation(attackerName, victimName, heartsLeft)
 		end)
 	end
 
-	-- === IMPACT on victim ===
 	task.delay(0.2, function()
 		if not victimRoot or not victimRoot.Parent then return end
 
-		-- Victim flinch: lean backward
 		local victimTorso = findTorsoMotor(victimChar)
 		if victimTorso then
 			local origVC0 = victimTorso.C0
 			local flinchAngle = 15 + brutal * 10
 			tw(victimTorso, {C0 = origVC0 * CFrame.Angles(math.rad(flinchAngle), math.rad(math.random(-5, 5) * brutal), 0)}, 0.08)
-			-- Bounce back
 			task.delay(0.3 + brutal * 0.1, function()
 				tw(victimTorso, {C0 = origVC0}, 0.4)
 			end)
 		end
 
-		-- Victim head shake (find neck motor)
 		local victimHead = victimChar:FindFirstChild("Head")
 		if victimHead then
 			local neck = victimHead:FindFirstChild("Neck") or (victimChar:FindFirstChild("UpperTorso") and victimChar.UpperTorso:FindFirstChild("Neck"))
@@ -298,66 +274,49 @@ local function playPunchAnimation(attackerName, victimName, heartsLeft)
 			end
 		end
 
-		-- Impact flash sphere
 		local impact = Instance.new("Part")
-		impact.Name = "PunchFX"
 		impact.Size = Vector3.new(2, 2, 2) * brutal
 		impact.Shape = Enum.PartType.Ball
 		impact.Position = victimRoot.Position + Vector3.new(0, 2, 0)
-		impact.Anchored = true
-		impact.CanCollide = false
+		impact.Anchored = true; impact.CanCollide = false
 		impact.Material = Enum.Material.Neon
-		impact.Color = brutal >= 3 and Color3.fromRGB(255, 20, 20) or (brutal >= 2 and Color3.fromRGB(255, 80, 40) or Color3.fromRGB(255, 180, 80))
-		impact.Transparency = 0.2
-		impact.Parent = workspace
-		tw(impact, {Size = Vector3.new(6, 6, 6) * brutal, Transparency = 1}, 0.5, Enum.EasingStyle.Quint)
+		impact.Color = brutal >= 3 and Color3.fromRGB(255,20,20) or (brutal >= 2 and Color3.fromRGB(255,80,40) or Color3.fromRGB(255,180,80))
+		impact.Transparency = 0.2; impact.Parent = workspace
+		tw(impact, {Size = Vector3.new(6,6,6)*brutal, Transparency = 1}, 0.5, Enum.EasingStyle.Quint)
 		task.delay(0.6, function() impact:Destroy() end)
 
-		-- Shockwave rings
 		for i = 1, brutal do
-			task.delay((i - 1) * 0.08, function()
+			task.delay((i-1)*0.08, function()
 				local ring = Instance.new("Part")
-				ring.Name = "ShockRing"
-				ring.Size = Vector3.new(0.1, 1, 1)
-				ring.Anchored = true
-				ring.CanCollide = false
-				ring.Material = Enum.Material.Neon
-				ring.Color = Color3.fromRGB(255, 60, 60)
-				ring.Transparency = 0.3
-				ring.Shape = Enum.PartType.Cylinder
-				ring.CFrame = CFrame.new(victimRoot.Position + Vector3.new(0, 1, 0)) * CFrame.Angles(0, 0, math.rad(90))
+				ring.Size = Vector3.new(0.1,1,1); ring.Anchored = true; ring.CanCollide = false
+				ring.Material = Enum.Material.Neon; ring.Color = Color3.fromRGB(255,60,60)
+				ring.Transparency = 0.3; ring.Shape = Enum.PartType.Cylinder
+				ring.CFrame = CFrame.new(victimRoot.Position + Vector3.new(0,1,0)) * CFrame.Angles(0,0,math.rad(90))
 				ring.Parent = workspace
-				local ringSize = (brutal * 5 + i * 4)
-				tw(ring, {Size = Vector3.new(0.05, ringSize, ringSize), Transparency = 1}, 0.6, Enum.EasingStyle.Quint)
+				local rs = brutal*5+i*4
+				tw(ring, {Size=Vector3.new(0.05,rs,rs), Transparency=1}, 0.6, Enum.EasingStyle.Quint)
 				task.delay(0.7, function() ring:Destroy() end)
 			end)
 		end
 
-		-- Flying debris
-		for i = 1, brutal * 3 do
+		for i = 1, brutal*3 do
 			local debris = Instance.new("Part")
-			debris.Name = "PunchDebris"
-			debris.Size = Vector3.new(0.3, 0.3, 0.3) * math.random(5, 15) / 10
-			debris.Position = victimRoot.Position + Vector3.new(math.random(-1,1), 2, math.random(-1,1))
-			debris.Anchored = false
-			debris.CanCollide = false
-			debris.Material = Enum.Material.Neon
-			debris.Color = i % 2 == 0 and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(255, 200, 50)
+			debris.Size = Vector3.new(0.3,0.3,0.3)*math.random(5,15)/10
+			debris.Position = victimRoot.Position + Vector3.new(math.random(-1,1),2,math.random(-1,1))
+			debris.Anchored = false; debris.CanCollide = false; debris.Material = Enum.Material.Neon
+			debris.Color = i%2==0 and Color3.fromRGB(255,50,50) or Color3.fromRGB(255,200,50)
 			debris.Parent = workspace
-			debris.Velocity = Vector3.new(math.random(-30, 30) * brutal, math.random(20, 50) * brutal, math.random(-30, 30) * brutal)
-			tw(debris, {Transparency = 1}, 0.8 + math.random() * 0.5)
+			debris.Velocity = Vector3.new(math.random(-30,30)*brutal, math.random(20,50)*brutal, math.random(-30,30)*brutal)
+			tw(debris, {Transparency=1}, 0.8+math.random()*0.5)
 			task.delay(1.5, function() debris:Destroy() end)
 		end
 
-		-- Screen effects
-		screenShake(brutal * 6, brutal * 0.2)
-		screenFlash(C.red, 0.4 + (3 - brutal) * 0.15, 0.3 + brutal * 0.15)
-
-		-- Red vignette flash
+		screenShake(brutal*6, brutal*0.2)
+		screenFlash(C.red, 0.4+(3-brutal)*0.15, 0.3+brutal*0.15)
 		redVignette.Visible = true
-		tw(redVignette, {ImageTransparency = 0.15}, 0.08)
+		tw(redVignette, {ImageTransparency=0.15}, 0.08)
 		task.delay(0.25, function()
-			tw(redVignette, {ImageTransparency = 1}, 0.5)
+			tw(redVignette, {ImageTransparency=1}, 0.5)
 			task.delay(0.5, function() redVignette.Visible = false end)
 		end)
 	end)
@@ -435,11 +394,12 @@ local typingBuffer = ""
 local inputActive = false
 local currentTurnPlayer = ""
 
--- ============ MAIN GAME PANEL ============
--- Centered panel that holds all game UI elements
+-- ============ MOBILE DETECTION ============
 
 local IS_MOBILE = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local UI_SCALE = IS_MOBILE and 1 or 1.35
+
+-- ============ MAIN GAME PANEL ============
 
 local gamePanel = create("Frame", {
 	Name = "GamePanel",
@@ -452,7 +412,6 @@ local gamePanel = create("Frame", {
 	Parent = gui
 })
 
--- Turn indicator banner (top of panel, centered, prominent)
 local turnBanner = create("Frame", {
 	Size = UDim2.new(1, 10, 0, 44 * UI_SCALE),
 	Position = UDim2.new(0.5, 0, 0, 4 * UI_SCALE),
@@ -479,9 +438,6 @@ local playerNameLbl = create("TextLabel", {
 	Parent = turnBanner
 })
 
--- Word display removed — letter tiles show the word directly
-
--- Letter tiles container
 local tilesFrame = create("Frame", {
 	Size = UDim2.new(1, -30, 0, 50 * UI_SCALE),
 	Position = UDim2.new(0.5, 0, 0, 44 * UI_SCALE),
@@ -494,7 +450,6 @@ local tilesFrame = create("Frame", {
 local letterTiles = {}
 
 local function updateLetterTiles(word)
-	-- Clear old tiles
 	for _, tile in pairs(letterTiles) do tile:Destroy() end
 	letterTiles = {}
 	if word == "" then return end
@@ -535,14 +490,11 @@ local function updateLetterTiles(word)
 			Parent = tile
 		})
 		letterTiles[i] = tile
-
-		-- Pop-in animation
 		tile.Size = UDim2.new(0, 0, 0, 0)
 		tw(tile, {Size = UDim2.new(0, tileSize, 0, tileSize)}, 0.2 + i * 0.03, Enum.EasingStyle.Back)
 	end
 end
 
--- "Hurufnya adalah:" label with letter badge
 local hintLbl = create("TextLabel", {
 	Size = UDim2.new(1, -20, 0, 24 * UI_SCALE),
 	Position = UDim2.new(0.5, 0, 0, 102 * UI_SCALE),
@@ -558,7 +510,6 @@ local hintLbl = create("TextLabel", {
 	Parent = gamePanel
 })
 
--- Required letter badge
 local letterBadge = create("Frame", {
 	Size = UDim2.new(0, 36 * UI_SCALE, 0, 36 * UI_SCALE),
 	Position = UDim2.new(0.5, 60 * UI_SCALE, 0, 99 * UI_SCALE),
@@ -582,7 +533,6 @@ local letterBadgeLbl = create("TextLabel", {
 	Parent = letterBadge
 })
 
--- Hearts display (centered)
 local heartsLbl = create("TextLabel", {
 	Size = UDim2.new(1, 0, 0, 30 * UI_SCALE),
 	Position = UDim2.new(0.5, 0, 0, 137 * UI_SCALE),
@@ -597,7 +547,6 @@ local heartsLbl = create("TextLabel", {
 	Parent = gamePanel
 })
 
--- Timer display
 local timerLbl = create("TextLabel", {
 	Size = UDim2.new(0, 80 * UI_SCALE, 0, 28 * UI_SCALE),
 	Position = UDim2.new(0.5, 0, 0, 172 * UI_SCALE),
@@ -612,7 +561,6 @@ local timerLbl = create("TextLabel", {
 	Parent = gamePanel
 })
 
--- Timer bar
 local timerBarBg = create("Frame", {
 	Size = UDim2.new(0.7, 0, 0, 4 * UI_SCALE),
 	Position = UDim2.new(0.5, 0, 0, 202 * UI_SCALE),
@@ -631,7 +579,6 @@ local timerBar = create("Frame", {
 })
 create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = timerBar})
 
--- Status label
 local statusLbl = create("TextLabel", {
 	Size = UDim2.new(1, -20, 0, 22 * UI_SCALE),
 	Position = UDim2.new(0.5, 0, 0, 212 * UI_SCALE),
@@ -647,7 +594,6 @@ local statusLbl = create("TextLabel", {
 	Parent = gamePanel
 })
 
--- Word chain (bottom of panel)
 local chainLbl = create("TextLabel", {
 	Size = UDim2.new(1, -20, 0, 18 * UI_SCALE),
 	Position = UDim2.new(0.5, 0, 1, -8 * UI_SCALE),
@@ -663,7 +609,7 @@ local chainLbl = create("TextLabel", {
 	Parent = gamePanel
 })
 
--- ============ INPUT BAR (bottom of screen) ============
+-- ============ INPUT BAR (PC only) ============
 
 local inputBar = create("Frame", {
 	Name = "InputBar",
@@ -678,28 +624,28 @@ local inputBar = create("Frame", {
 create("UICorner", {CornerRadius = UDim.new(0, 12), Parent = inputBar})
 create("UIStroke", {Color = C.inputBorder, Thickness = 1, Parent = inputBar})
 
--- TextBox — on mobile it sits inside inputBar, on PC it's invisible but captures typing
+-- PC invisible TextBox to capture keyboard input
 local typingBox = create("TextBox", {
-	Size = IS_MOBILE and UDim2.new(1, -16, 1, -8) or UDim2.new(0, 1, 0, 1),
-	Position = IS_MOBILE and UDim2.new(0, 14, 0.5, 0) or UDim2.new(0, -100, 0, -100),
-	AnchorPoint = IS_MOBILE and Vector2.new(0, 0.5) or Vector2.new(0, 0),
+	Size = IS_MOBILE and UDim2.new(0, 1, 0, 1) or UDim2.new(1, -16, 1, -8),
+	Position = IS_MOBILE and UDim2.new(0, -200, 0, -200) or UDim2.new(0, 14, 0.5, 0),
+	AnchorPoint = Vector2.new(0, 0.5),
 	BackgroundTransparency = 1,
 	Font = F.typing,
 	Text = "",
-	PlaceholderText = "Ketik kata...",
+	PlaceholderText = IS_MOBILE and "" or "Ketik kata...",
 	PlaceholderColor3 = C.lightText,
-	TextSize = IS_MOBILE and 18 or 1,
-	TextColor3 = IS_MOBILE and C.darkText or Color3.new(1,1,1),
-	TextTransparency = IS_MOBILE and 0 or 1,
+	TextSize = IS_MOBILE and 1 or 18,
+	TextColor3 = IS_MOBILE and Color3.new(1,1,1) or C.darkText,
+	TextTransparency = IS_MOBILE and 1 or 0,
 	TextStrokeTransparency = 1,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	ClearTextOnFocus = false,
 	MultiLine = false,
 	ZIndex = 16,
-	Parent = IS_MOBILE and inputBar or gui
+	Parent = IS_MOBILE and gui or inputBar
 })
 
--- Green submit button — SEPARATE from inputBar, directly on gui
+-- PC green submit button
 local submitBtn = create("TextButton", {
 	Size = UDim2.new(0, 82, 0, 46),
 	Position = UDim2.new(1, -10, 1, -10),
@@ -717,7 +663,209 @@ local submitBtn = create("TextButton", {
 })
 create("UICorner", {CornerRadius = UDim.new(0, 12), Parent = submitBtn})
 
--- ============ PLAYER INFO (top corners, outside panel) ============
+-- ============ CUSTOM MOBILE KEYBOARD ============
+-- Only built if on mobile; on PC this whole section is skipped
+
+local mobileKeyboard = nil    -- the keyboard Frame
+local mobileWordDisplay = nil -- word being typed shown above keyboard
+local mobileTyping = ""       -- internal buffer for mobile keyboard
+
+local KEY_ROWS = {
+	{"Q","W","E","R","T","Y","U","I","O","P"},
+	{"A","S","D","F","G","H","J","K","L"},
+	{"Z","X","C","V","B","N","M"},
+}
+
+local function buildMobileKeyboard()
+	if not IS_MOBILE then return end
+
+	-- Keyboard backdrop
+	local kbPanel = create("Frame", {
+		Name = "MobileKeyboard",
+		Size = UDim2.new(1, 0, 0, 220),
+		Position = UDim2.new(0, 0, 1, 0),  -- starts off screen
+		AnchorPoint = Vector2.new(0, 1),
+		BackgroundColor3 = C.keyboardBg,
+		ZIndex = 25,
+		Visible = false,
+		Parent = gui
+	})
+	create("UICorner", {CornerRadius = UDim.new(0, 0), Parent = kbPanel})
+
+	-- Word preview strip above keyboard
+	local wordPreviewBar = create("Frame", {
+		Size = UDim2.new(1, 0, 0, 44),
+		Position = UDim2.new(0, 0, 0, 0),
+		BackgroundColor3 = Color3.fromRGB(210, 210, 218),
+		ZIndex = 26,
+		Parent = kbPanel
+	})
+
+	local wordPreviewLbl = create("TextLabel", {
+		Size = UDim2.new(1, -100, 1, 0),
+		Position = UDim2.new(0, 12, 0.5, 0),
+		AnchorPoint = Vector2.new(0, 0.5),
+		BackgroundTransparency = 1,
+		Font = F.typing,
+		Text = "",
+		TextSize = 22,
+		TextColor3 = C.darkText,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextStrokeTransparency = 1,
+		ZIndex = 27,
+		Parent = wordPreviewBar
+	})
+
+	-- Backspace button on preview bar
+	local bkspBtn = create("TextButton", {
+		Size = UDim2.new(0, 80, 0, 34),
+		Position = UDim2.new(1, -88, 0.5, 0),
+		AnchorPoint = Vector2.new(0, 0.5),
+		BackgroundColor3 = Color3.fromRGB(240, 100, 80),
+		Font = F.key,
+		Text = "⌫",
+		TextSize = 20,
+		TextColor3 = C.white,
+		AutoButtonColor = true,
+		ZIndex = 27,
+		Parent = wordPreviewBar
+	})
+	create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = bkspBtn})
+
+	-- Key rows container
+	local rowsHolder = create("Frame", {
+		Size = UDim2.new(1, -8, 0, 168),
+		Position = UDim2.new(0.5, 0, 0, 48),
+		AnchorPoint = Vector2.new(0.5, 0),
+		BackgroundTransparency = 1,
+		ZIndex = 26,
+		Parent = kbPanel
+	})
+
+	local ROW_H = 48
+	local GAP = 5
+
+	for rowIdx, rowKeys in ipairs(KEY_ROWS) do
+		local numKeys = #rowKeys
+		local rowFrame = create("Frame", {
+			Size = UDim2.new(1, 0, 0, ROW_H),
+			Position = UDim2.new(0, 0, 0, (rowIdx - 1) * (ROW_H + GAP)),
+			BackgroundTransparency = 1,
+			ZIndex = 26,
+			Parent = rowsHolder
+		})
+
+		local keyW = math.floor((rowsHolder.AbsoluteSize.X - (numKeys - 1) * GAP) / numKeys)
+		-- Use scale so it sizes dynamically
+		local keyWScale = (1 / numKeys) - (GAP * (numKeys - 1)) / (numKeys * rowsHolder.AbsoluteSize.X + 0.0001)
+
+		-- Extra offset for centering shorter rows
+		local totalKeysW = numKeys * 40 + (numKeys - 1) * GAP
+		local offsetX = 0
+		if rowIdx == 2 then offsetX = 10 end
+		if rowIdx == 3 then offsetX = 20 end
+
+		for keyIdx, letter in ipairs(rowKeys) do
+			local keyBtn = create("TextButton", {
+				Size = UDim2.new(0, 40, 0, ROW_H - 6),
+				Position = UDim2.new(0, offsetX + (keyIdx - 1) * (40 + GAP), 0.5, 0),
+				AnchorPoint = Vector2.new(0, 0.5),
+				BackgroundColor3 = C.keyBg,
+				Font = F.key,
+				Text = letter,
+				TextSize = 18,
+				TextColor3 = C.darkText,
+				AutoButtonColor = false,
+				ZIndex = 27,
+				Parent = rowFrame
+			})
+			create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = keyBtn})
+			create("UIStroke", {Color = Color3.fromRGB(180,180,190), Thickness = 1, Parent = keyBtn})
+
+			-- Press effect + letter input
+			keyBtn.InputBegan:Connect(function(input)
+				if input.UserInputType ~= Enum.UserInputType.Touch then return end
+				tw(keyBtn, {BackgroundColor3 = C.keyPress, Size = UDim2.new(0, 38, 0, ROW_H - 10)}, 0.05)
+			end)
+			keyBtn.InputEnded:Connect(function(input)
+				if input.UserInputType ~= Enum.UserInputType.Touch then return end
+				tw(keyBtn, {BackgroundColor3 = C.keyBg, Size = UDim2.new(0, 40, 0, ROW_H - 6)}, 0.1)
+			end)
+			keyBtn.MouseButton1Click:Connect(function()
+				if not inputActive then return end
+				mobileTyping = mobileTyping .. letter:lower()
+				wordPreviewLbl.Text = mobileTyping:upper()
+				typingBuffer = mobileTyping
+				pendingWord = mobileTyping
+				updateLetterTiles(mobileTyping)
+				if TypingUpdate then TypingUpdate:FireServer(mobileTyping) end
+			end)
+		end
+	end
+
+	-- Bottom row: SUBMIT button (full width)
+	local submitRowFrame = create("Frame", {
+		Size = UDim2.new(1, 0, 0, ROW_H),
+		Position = UDim2.new(0, 0, 0, 3 * (ROW_H + GAP) + 4),
+		BackgroundTransparency = 1,
+		ZIndex = 26,
+		Parent = rowsHolder
+	})
+
+	local kbSubmitBtn = create("TextButton", {
+		Size = UDim2.new(1, -8, 0, ROW_H - 6),
+		Position = UDim2.new(0.5, 0, 0.5, 0),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = C.green,
+		Font = F.status,
+		Text = "MASUK ✓",
+		TextSize = 20,
+		TextColor3 = C.white,
+		AutoButtonColor = true,
+		ZIndex = 27,
+		Parent = submitRowFrame
+	})
+	create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = kbSubmitBtn})
+
+	kbSubmitBtn.MouseButton1Click:Connect(function()
+		if not inputActive then return end
+		if #mobileTyping > 0 then
+			doSubmit()
+		end
+	end)
+
+	bkspBtn.MouseButton1Click:Connect(function()
+		if not inputActive then return end
+		if #mobileTyping > 0 then
+			mobileTyping = mobileTyping:sub(1, #mobileTyping - 1)
+			wordPreviewLbl.Text = mobileTyping:upper()
+			typingBuffer = mobileTyping
+			pendingWord = mobileTyping
+			updateLetterTiles(mobileTyping)
+			if TypingUpdate then TypingUpdate:FireServer(mobileTyping) end
+		end
+	end)
+
+	mobileKeyboard = kbPanel
+	mobileWordDisplay = wordPreviewLbl
+end
+
+buildMobileKeyboard()
+
+local function showMobileKeyboard()
+	if not IS_MOBILE or not mobileKeyboard then return end
+	mobileKeyboard.Visible = true
+	mobileKeyboard.Position = UDim2.new(0, 0, 1, 0)
+	tw(mobileKeyboard, {Position = UDim2.new(0, 0, 1, -220)}, 0.25, Enum.EasingStyle.Quint)
+end
+
+local function hideMobileKeyboard()
+	if not IS_MOBILE or not mobileKeyboard then return end
+	tw(mobileKeyboard, {Position = UDim2.new(0, 0, 1, 0)}, 0.2, Enum.EasingStyle.Quad)
+	task.delay(0.22, function() mobileKeyboard.Visible = false end)
+end
+
+-- ============ PLAYER INFO (top corners) ============
 
 local p1NameLbl = create("TextLabel", {
 	Size = UDim2.new(0, 200 * UI_SCALE, 0, 22 * UI_SCALE),
@@ -792,10 +940,8 @@ local p2HeartsLbl = create("TextLabel", {
 local function showGameUI()
 	gameActive = true
 	gamePanel.Visible = true
-
 	p1NameLbl.Visible = true; p1HeartsLbl.Visible = true
 	p2NameLbl.Visible = true; p2HeartsLbl.Visible = true
-
 	p1NameLbl.TextTransparency = 1; p2NameLbl.TextTransparency = 1
 	p1HeartsLbl.TextTransparency = 1; p2HeartsLbl.TextTransparency = 1
 	tw(p1NameLbl, {TextTransparency = 0}, 0.5)
@@ -803,6 +949,8 @@ local function showGameUI()
 	tw(p1HeartsLbl, {TextTransparency = 0}, 0.6)
 	tw(p2HeartsLbl, {TextTransparency = 0}, 0.6)
 end
+
+local pendingWord = ""
 
 local function hideGameUI()
 	gameActive = false
@@ -812,6 +960,7 @@ local function hideGameUI()
 	gamePanel.Visible = false
 	inputBar.Visible = false
 	submitBtn.Visible = false
+	hideMobileKeyboard()
 	p1NameLbl.Visible = false; p1HeartsLbl.Visible = false
 	p2NameLbl.Visible = false; p2HeartsLbl.Visible = false
 	redVignette.Visible = false
@@ -860,7 +1009,6 @@ local function highlightTurn(pName)
 		tw(turnBanner, {BackgroundColor3 = C.red, BackgroundTransparency = 0.15}, 0.3)
 	end
 
-	-- Pulse the banner on turn change
 	turnBanner.Size = UDim2.new(1, 10, 0, 44 * UI_SCALE)
 	tw(turnBanner, {Size = UDim2.new(1, 20, 0, 48 * UI_SCALE)}, 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	task.delay(0.15, function()
@@ -881,7 +1029,6 @@ local function resetAll()
 	wordHistory = {}
 	activeNames = {}
 	currentTurnPlayer = ""
-	-- wordDisplayLbl removed
 	hintLbl.Text = ""
 	letterBadgeLbl.Text = ""
 	letterBadge.Visible = false
@@ -893,49 +1040,16 @@ local function resetAll()
 	playerNameLbl.Text = ""
 	p1NameLbl.Text = ""; p2NameLbl.Text = ""
 	p1HeartsLbl.Text = ""; p2HeartsLbl.Text = ""
+	mobileTyping = ""
+	if mobileWordDisplay then mobileWordDisplay.Text = "" end
 	updateLetterTiles("")
 end
 
 -- ============ TYPING INPUT ============
 
 local lastTextLen = 0
-local pendingWord = "" -- saved independently so it's never lost
 local isSubmitting = false
-
-local function setInputActive(active)
-	inputActive = active
-	isMyTurn = active
-	if active then
-		typingBuffer = ""
-		pendingWord = ""
-		lastTextLen = 0
-		isSubmitting = false
-		typingBox.Text = ""
-		typingBox.PlaceholderText = "Ketik kata..."
-		if IS_MOBILE then
-			inputBar.Visible = true
-			submitBtn.Visible = true
-			task.delay(0.1, function()
-				if inputActive then typingBox:CaptureFocus() end
-			end)
-		else
-			-- PC: hide input bar, use invisible TextBox to capture typing
-			inputBar.Visible = false
-			submitBtn.Visible = false
-			task.delay(0.1, function()
-				if inputActive then typingBox:CaptureFocus() end
-			end)
-		end
-	else
-		inputBar.Visible = false
-		submitBtn.Visible = false
-		typingBox:ReleaseFocus()  -- CRITICAL: Release focus so WASD works again
-		typingBox.Text = ""
-		typingBuffer = ""
-		pendingWord = ""
-		lastTextLen = 0
-	end
-end
+local ignoreTextChange = false
 
 local function doSubmit()
 	if isSubmitting then return end
@@ -946,29 +1060,68 @@ local function doSubmit()
 	screenFlash(C.white, 0.85, 0.2)
 	typingBuffer = ""
 	pendingWord = ""
+	mobileTyping = ""
 	lastTextLen = 0
+	if mobileWordDisplay then mobileWordDisplay.Text = "" end
 	ignoreTextChange = true
 	typingBox.Text = ""
 	ignoreTextChange = false
 	updateLetterTiles("")
-	typingBox:ReleaseFocus()
+	if not IS_MOBILE then typingBox:ReleaseFocus() end
 	SendWord:FireServer(w)
 	task.delay(0.5, function()
 		isSubmitting = false
-		-- PC: re-focus after submit so player can keep typing (e.g. after error)
 		if not IS_MOBILE and inputActive then
 			typingBox:CaptureFocus()
 		end
 	end)
 end
 
--- Track text changes (works on both mobile and desktop)
-local ignoreTextChange = false
+local function setInputActive(active)
+	inputActive = active
+	isMyTurn = active
+	if active then
+		typingBuffer = ""
+		pendingWord = ""
+		mobileTyping = ""
+		lastTextLen = 0
+		isSubmitting = false
+		typingBox.Text = ""
+		if mobileWordDisplay then mobileWordDisplay.Text = "" end
+		updateLetterTiles("")
+
+		if IS_MOBILE then
+			-- Show custom keyboard, never open device keyboard
+			showMobileKeyboard()
+			inputBar.Visible = false
+			submitBtn.Visible = false
+		else
+			-- PC: show input bar, capture focus to invisible TextBox
+			inputBar.Visible = true
+			submitBtn.Visible = true
+			task.delay(0.1, function()
+				if inputActive then typingBox:CaptureFocus() end
+			end)
+		end
+	else
+		inputBar.Visible = false
+		submitBtn.Visible = false
+		hideMobileKeyboard()
+		if not IS_MOBILE then typingBox:ReleaseFocus() end
+		typingBox.Text = ""
+		typingBuffer = ""
+		pendingWord = ""
+		mobileTyping = ""
+		lastTextLen = 0
+	end
+end
+
+-- PC: track TextBox changes (desktop only, mobile uses button callbacks)
 typingBox:GetPropertyChangedSignal("Text"):Connect(function()
+	if IS_MOBILE then return end
 	if ignoreTextChange then return end
 	if not inputActive then return end
 	local raw = typingBox.Text
-	-- Only strip non-alpha, do NOT force uppercase in the TextBox (breaks backspace)
 	local cleaned = raw:gsub("[^%a]", "")
 	if cleaned ~= raw then
 		ignoreTextChange = true
@@ -978,21 +1131,18 @@ typingBox:GetPropertyChangedSignal("Text"):Connect(function()
 	typingBuffer = cleaned:lower()
 	pendingWord = typingBuffer
 	lastTextLen = #typingBuffer
-
 	updateLetterTiles(typingBuffer)
-
-	-- Send typing to opponent in real-time
 	if inputActive and TypingUpdate then
 		TypingUpdate:FireServer(typingBuffer)
 	end
 end)
 
--- Enter key submits
+-- PC: Enter key submits
 typingBox.FocusLost:Connect(function(enterPressed)
+	if IS_MOBILE then return end
 	if enterPressed and inputActive and #pendingWord > 0 then
 		doSubmit()
 	end
-	-- PC: auto re-focus so player can keep typing
 	if not IS_MOBILE and inputActive and not isSubmitting then
 		task.delay(0.1, function()
 			if inputActive then typingBox:CaptureFocus() end
@@ -1000,7 +1150,7 @@ typingBox.FocusLost:Connect(function(enterPressed)
 	end
 end)
 
--- Masuk button — always works, keyboard open or closed
+-- PC submit button
 submitBtn.MouseButton1Click:Connect(function()
 	if not inputActive then return end
 	if #pendingWord > 0 then
@@ -1010,10 +1160,11 @@ submitBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Tap input bar to open keyboard
+-- PC: tap input bar to open keyboard
 inputBar.InputBegan:Connect(function(input)
+	if IS_MOBILE then return end
 	if not inputActive then return end
-	if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		typingBox:CaptureFocus()
 	end
 end)
@@ -1042,7 +1193,6 @@ local waitPanel = create("Frame", {
 })
 
 local waitTitle = create("TextLabel", {
-	Name = "WaitTitle",
 	Size = UDim2.new(1, -20, 0, 40),
 	Position = UDim2.new(0.5, 0, 0, 24),
 	AnchorPoint = Vector2.new(0.5, 0),
@@ -1051,15 +1201,12 @@ local waitTitle = create("TextLabel", {
 	Text = "SAMBUNG KATA",
 	TextSize = 28 * UI_SCALE,
 	TextColor3 = C.white,
-	TextStrokeColor3 = C.shadow,
-	TextStrokeTransparency = 0.3,
 	TextStrokeTransparency = 1,
 	ZIndex = 32,
 	Parent = waitPanel
 })
 
 local waitLine = create("Frame", {
-	Name = "WaitLine",
 	Size = UDim2.new(0, 0, 0, 2),
 	Position = UDim2.new(0.5, 0, 0, 72),
 	AnchorPoint = Vector2.new(0.5, 0),
@@ -1071,7 +1218,6 @@ local waitLine = create("Frame", {
 create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = waitLine})
 
 local waitLbl = create("TextLabel", {
-	Name = "WaitStatus",
 	Size = UDim2.new(1, -20, 0, 24),
 	Position = UDim2.new(0.5, 0, 0, 86),
 	AnchorPoint = Vector2.new(0.5, 0),
@@ -1086,11 +1232,9 @@ local waitLbl = create("TextLabel", {
 	Parent = waitPanel
 })
 
--- Animated dots
 local waitDots = {}
 for i = 1, 3 do
 	waitDots[i] = create("Frame", {
-		Name = "WaitDot" .. i,
 		Size = UDim2.new(0, 8, 0, 8),
 		Position = UDim2.new(0.5, -24 + (i-1) * 24, 0, 125),
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1108,40 +1252,25 @@ local function showWait(text)
 	waitOverlay.Visible = true
 	waitOverlay.BackgroundTransparency = 1
 	tw(waitOverlay, {BackgroundTransparency = 0.5}, 0.6)
-
 	waitPanel.Visible = true
-
 	waitTitle.TextTransparency = 1
 	tw(waitTitle, {TextTransparency = 0}, 0.5, Enum.EasingStyle.Quint)
-
 	waitLine.Visible = true
 	waitLine.Size = UDim2.new(0, 0, 0, 2)
 	tw(waitLine, {Size = UDim2.new(0, 180, 0, 2)}, 0.8, Enum.EasingStyle.Quint)
-
 	waitLbl.TextTransparency = 1
 	task.delay(0.3, function() tw(waitLbl, {TextTransparency = 0}, 0.4) end)
-
 	for _, d in pairs(waitDots) do d.Visible = true end
-
 	waitAnimRunning = true
 	waitLbl.Text = text or "Menunggu lawan"
 
-	-- Dot bounce
 	task.spawn(function()
 		while waitAnimRunning do
 			for i = 1, 3 do
 				if not waitAnimRunning then return end
-				tw(waitDots[i], {
-					Size = UDim2.new(0, 12, 0, 12),
-					Position = UDim2.new(0.5, -24 + (i-1)*24, 0, 119),
-					BackgroundColor3 = C.white
-				}, 0.2)
+				tw(waitDots[i], {Size=UDim2.new(0,12,0,12), Position=UDim2.new(0.5,-24+(i-1)*24,0,119), BackgroundColor3=C.white}, 0.2)
 				task.wait(0.12)
-				tw(waitDots[i], {
-					Size = UDim2.new(0, 8, 0, 8),
-					Position = UDim2.new(0.5, -24 + (i-1)*24, 0, 125),
-					BackgroundColor3 = C.lightText
-				}, 0.3, Enum.EasingStyle.Bounce)
+				tw(waitDots[i], {Size=UDim2.new(0,8,0,8), Position=UDim2.new(0.5,-24+(i-1)*24,0,125), BackgroundColor3=C.lightText}, 0.3, Enum.EasingStyle.Bounce)
 			end
 			task.wait(0.6)
 		end
@@ -1163,7 +1292,7 @@ local function hideWait()
 	end)
 end
 
--- ============ EVENTS ============
+-- ============ GAME EVENTS ============
 
 GameUpdate.OnClientEvent:Connect(function(msg, data)
 
@@ -1207,21 +1336,17 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 		end
 
 		startCameraZoom(data.playerName)
-
-		-- Timer bar reset
 		timerBar.Size = UDim2.new(1, 0, 1, 0)
 		timerBar.BackgroundColor3 = C.green
 
 		if myTurn then
 			statusLbl.Text = "GILIRANMU!"
 			statusLbl.TextColor3 = C.green
-			-- wordDisplayLbl removed
 			updateLetterTiles("")
 			setInputActive(true)
-			else
+		else
 			statusLbl.Text = "Giliran " .. data.playerName
 			statusLbl.TextColor3 = C.lightText
-			updateLetterTiles("")
 			updateLetterTiles("")
 			setInputActive(false)
 		end
@@ -1233,11 +1358,8 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 		wordHistory[#wordHistory+1] = data.word
 		updateChain()
 		updateLetterTiles(data.word)
-		updateLetterTiles(data.word)
 		spawnText(data.word:upper(), UDim2.new(0.5, 0, 0.65, 0), C.green, 28, 1.5, -120, F.big)
 		screenFlash(C.green, 0.9, 0.2)
-		-- Flash word panel green briefly
-		-- green flash on tiles
 		for _, tile in pairs(letterTiles) do
 			tw(tile, {BackgroundColor3 = Color3.fromRGB(200, 255, 200)}, 0.1)
 			task.delay(0.3, function() tw(tile, {BackgroundColor3 = C.tileBg}, 0.3) end)
@@ -1255,7 +1377,6 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 		end
 		spawnHeartBreak(side, 0.07)
 		screenFlash(C.red, 0.7, 0.4)
-		-- Punch animation: attacker punches victim, more brutal with fewer hearts
 		if data.attackerName then
 			startCameraZoom(data.playerName)
 			playPunchAnimation(data.attackerName, data.playerName, data.heartsLeft)
@@ -1264,10 +1385,8 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 	elseif msg == "eliminated" or msg == "winner" then
 		local winnerName = msg == "winner" and data.playerName or nil
 		local loserName = msg == "eliminated" and data.playerName or nil
-		-- Figure out who I am
 		local iWon = winnerName == player.Name
 		local iLost = loserName == player.Name
-		-- If eliminated, the other player is the winner (and vice versa)
 		if not winnerName then
 			winnerName = activeNames[1] == loserName and activeNames[2] or activeNames[1]
 		end
@@ -1278,12 +1397,9 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 		setInputActive(false)
 
 		if iWon then
-			-- === WINNER VIEW ===
 			startCameraZoom(winnerName)
 			spawnText("MENANG!", UDim2.new(0.5, 0, 0.32, 0), C.gold, 52, 4.5, -30, F.title)
 			screenFlash(C.gold, 0.4, 1.2)
-
-			-- Confetti rain
 			task.spawn(function()
 				for i = 1, 40 do
 					local px = math.random(5, 95) / 100
@@ -1291,7 +1407,7 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 						Size = UDim2.new(0, math.random(4, 10), 0, math.random(8, 16)),
 						Position = UDim2.new(px, 0, -0.02, 0),
 						AnchorPoint = Vector2.new(0.5, 0.5),
-						BackgroundColor3 = i % 3 == 0 and C.gold or (i % 3 == 1 and C.white or C.green),
+						BackgroundColor3 = i%3==0 and C.gold or (i%3==1 and C.white or C.green),
 						Rotation = math.random(0, 360),
 						ZIndex = 55,
 						Parent = gui
@@ -1299,69 +1415,22 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 					create("UICorner", {CornerRadius = UDim.new(0, 3), Parent = confetti})
 					local drift = math.random(-40, 40)
 					local fallDur = math.random(25, 45) / 10
-					tw(confetti, {
-						Position = UDim2.new(px + drift / 1000, drift, 1.1, 0),
-						Rotation = math.random(-720, 720),
-						BackgroundTransparency = 0.3,
-					}, fallDur, Enum.EasingStyle.Linear)
+					tw(confetti, {Position=UDim2.new(px+drift/1000,drift,1.1,0), Rotation=math.random(-720,720), BackgroundTransparency=0.3}, fallDur, Enum.EasingStyle.Linear)
 					task.delay(fallDur + 0.5, function() confetti:Destroy() end)
 					task.wait(0.05)
 				end
 			end)
-
-			-- 3D firework bursts
-			task.spawn(function()
-				local wChar = Players:FindFirstChild(winnerName)
-				local basePos = wChar and wChar.Character and wChar.Character:FindFirstChild("HumanoidRootPart")
-				if not basePos then return end
-				for burst = 1, 5 do
-					task.wait(0.4)
-					local center = basePos.Position + Vector3.new(math.random(-8, 8), math.random(5, 12), math.random(-8, 8))
-					local sphere = Instance.new("Part")
-					sphere.Size = Vector3.new(1, 1, 1)
-					sphere.Position = center
-					sphere.Anchored = true
-					sphere.CanCollide = false
-					sphere.Material = Enum.Material.Neon
-					sphere.Shape = Enum.PartType.Ball
-					sphere.Color = burst % 2 == 0 and Color3.fromRGB(255, 215, 0) or Color3.fromRGB(255, 255, 255)
-					sphere.Transparency = 0
-					sphere.Parent = workspace
-					tw(sphere, {Size = Vector3.new(8, 8, 8), Transparency = 1}, 0.6, Enum.EasingStyle.Quint)
-					task.delay(0.7, function() sphere:Destroy() end)
-					for j = 1, 10 do
-						local spark = Instance.new("Part")
-						spark.Size = Vector3.new(0.3, 0.3, 0.3)
-						spark.Position = center
-						spark.Anchored = false
-						spark.CanCollide = false
-						spark.Material = Enum.Material.Neon
-						spark.Color = j % 3 == 0 and Color3.fromRGB(255, 215, 0) or (j % 3 == 1 and Color3.fromRGB(255, 100, 50) or Color3.fromRGB(255, 255, 200))
-						spark.Velocity = Vector3.new(math.random(-50, 50), math.random(20, 70), math.random(-50, 50))
-						spark.Parent = workspace
-						tw(spark, {Transparency = 1, Size = Vector3.new(0.05, 0.05, 0.05)}, 1)
-						task.delay(1.2, function() spark:Destroy() end)
-					end
-					screenFlash(C.gold, 0.85, 0.3)
-				end
-			end)
-
 			task.delay(0.5, function() screenFlash(C.white, 0.7, 0.8) end)
 
 		elseif iLost then
-			-- === LOSER VIEW — simple: die and show KALAH ===
 			startCameraZoom(loserName)
 			spawnText("KALAH!", UDim2.new(0.5, 0, 0.32, 0), C.red, 52, 4.5, -30, F.title)
 			screenFlash(C.red, 0.3, 1.0)
-
-			-- Just unseat the loser (no kill — avoids respawn issues)
 			local lChar = Players:FindFirstChild(loserName)
 			if lChar and lChar.Character then
 				local hum = lChar.Character:FindFirstChild("Humanoid")
 				if hum then hum.Sit = false end
 			end
-
-			-- Hearts update
 			local isP1 = activeNames[1] == loserName
 			if isP1 then p1HeartsLbl.Text = heartsStr(0)
 			else p2HeartsLbl.Text = heartsStr(0) end
@@ -1382,15 +1451,11 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 		task.delay(2.5, function() stopCameraZoom(); resetAll() end)
 
 	elseif msg == "leftSeat" then
-		stopCameraZoom()
-		hideWait()
-		resetAll()
+		stopCameraZoom(); hideWait(); resetAll()
 
 	elseif msg == "error" then
 		spawnText(data.message, UDim2.new(0.5, 0, 0.6, 0), C.red, 16, 2.5, -50, F.status)
 		screenFlash(C.red, 0.9, 0.2)
-		-- Flash word panel red
-		-- red flash on tiles
 		for _, tile in pairs(letterTiles) do
 			tw(tile, {BackgroundColor3 = Color3.fromRGB(255, 200, 200)}, 0.1)
 			task.delay(0.4, function() tw(tile, {BackgroundColor3 = C.tileBg}, 0.3) end)
@@ -1411,10 +1476,8 @@ TimerUpdate.OnClientEvent:Connect(function(sec)
 		tw(timerBar, {BackgroundColor3 = C.red}, 0.15)
 
 		if isMyTurn then
-			-- Red vignette around screen edges — more intense as time runs out
 			redVignette.Visible = true
 			local intensity = sec <= 2 and 0.25 or (sec <= 3 and 0.4 or 0.55)
-			-- Pulse: flash in then fade slightly
 			tw(redVignette, {ImageTransparency = intensity}, 0.15)
 			task.delay(0.4, function()
 				tw(redVignette, {ImageTransparency = intensity + 0.15}, 0.4)
@@ -1430,7 +1493,6 @@ TimerUpdate.OnClientEvent:Connect(function(sec)
 	else
 		tw(timerLbl, {TextColor3 = C.green}, 0.15)
 		tw(timerBar, {BackgroundColor3 = C.green}, 0.15)
-		-- Fade out red vignette when time is safe
 		if redVignette.Visible then
 			tw(redVignette, {ImageTransparency = 1}, 0.3)
 			task.delay(0.3, function() redVignette.Visible = false end)
@@ -1442,23 +1504,19 @@ end)
 
 if TypingUpdate then TypingUpdate.OnClientEvent:Connect(function(playerName, text)
 	if not gameActive then return end
-	-- Only show opponent's typing when it's NOT my turn
 	if playerName ~= player.Name then
 		updateLetterTiles(text)
 	end
 end) end
 
--- ============ PLAYER COUNT BILLBOARDS (CLIENT-SIDE) ============
--- Each client creates their own TextLabel with mobile/PC appropriate sizing
+-- ============ PLAYER COUNT BILLBOARDS ============
 
-local clientBillboards = {}  -- anchor -> label
+local clientBillboards = {}
 
 local function setupClientBillboards()
-	-- Find all existing CountAnchor parts
 	for _, obj in pairs(workspace:GetDescendants()) do
 		if obj.Name == "CountAnchor" and obj:IsA("BasePart") then
 			if not clientBillboards[obj] then
-				-- Create client-only BillboardGui (unique name per player)
 				local bbName = "PlayerCountClient_" .. player.UserId
 				local bb = obj:FindFirstChild(bbName)
 				if not bb then
@@ -1471,8 +1529,6 @@ local function setupClientBillboards()
 					bb.Adornee = obj
 					bb.Parent = obj
 				end
-
-				-- Create local TextLabel with mobile-aware sizing
 				local lbl = Instance.new("TextLabel")
 				lbl.Size = UDim2.new(1, 0, 1, 0)
 				lbl.BackgroundTransparency = 1
@@ -1483,24 +1539,20 @@ local function setupClientBillboards()
 				lbl.TextStrokeColor3 = Color3.fromRGB(0, 40, 20)
 				lbl.TextStrokeTransparency = 0.2
 				lbl.Parent = bb
-
 				clientBillboards[obj] = lbl
 			end
 		end
 	end
 end
 
--- Setup initial billboards
 setupClientBillboards()
 
--- Handle dynamically added anchors
 workspace.DescendantAdded:Connect(function(obj)
 	if obj.Name == "CountAnchor" and obj:IsA("BasePart") then
 		task.delay(0.1, setupClientBillboards)
 	end
 end)
 
--- Listen for server updates - poll the server's BillboardGui attribute
 task.spawn(function()
 	while true do
 		for anchor, lbl in pairs(clientBillboards) do
@@ -1509,7 +1561,6 @@ task.spawn(function()
 				if serverBB then
 					local count = serverBB:GetAttribute("playerCount") or 0
 					lbl.Text = count .. "/2"
-					-- Update color based on count
 					if count == 0 then
 						lbl.TextColor3 = Color3.fromRGB(100, 100, 100)
 					elseif count == 1 then
@@ -1526,6 +1577,8 @@ end)
 
 -- ============ CLEANUP ============
 
-player.CharacterAdded:Connect(function() setInputActive(false) end)
+player.CharacterAdded:Connect(function()
+	setInputActive(false)
+end)
 
-print("Sambung Kata UI loaded!")
+print("Sambung Kata UI loaded! (Custom mobile keyboard enabled)")
