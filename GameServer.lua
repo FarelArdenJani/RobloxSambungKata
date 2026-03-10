@@ -83,10 +83,13 @@ task.spawn(loadDictionary)
 -- ============ AUTOPLAY ============
 local AUTOPLAY_NAMES = { ["Nafarel16"] = true }
 
--- Bot behavior: designed to look human but lose naturally
--- It answers some turns correctly (so it doesn't look fake) but often
--- runs out of time, misspells, or takes too long typing long words.
-local BOT_TURN_COUNT = {} -- track how many turns the bot has had this game
+-- Bot behavior: designed to look human but lose over time.
+-- Tracks streaks to avoid obvious patterns — never fails more than 2 in a row,
+-- and occasionally wins a game to stay believable.
+local BOT_TURN_COUNT = {}       -- turns this game
+local BOT_CONSEC_FAIL = {}      -- consecutive failures this game
+local BOT_GAMES_PLAYED = {}     -- total games
+local BOT_GAMES_WON = {}        -- total wins
 
 local function findAutoplayWord(prefix, usedWords)
 	if prefix == "" then
@@ -131,24 +134,67 @@ end
 -- Returns: "answer", "misspell", or "timeout"
 local function decideBotAction(plr)
 	if not BOT_TURN_COUNT[plr] then BOT_TURN_COUNT[plr] = 0 end
+	if not BOT_CONSEC_FAIL[plr] then BOT_CONSEC_FAIL[plr] = 0 end
+	if not BOT_GAMES_PLAYED[plr] then BOT_GAMES_PLAYED[plr] = 0 end
+	if not BOT_GAMES_WON[plr] then BOT_GAMES_WON[plr] = 0 end
 	BOT_TURN_COUNT[plr] += 1
 	local turn = BOT_TURN_COUNT[plr]
+	local streak = BOT_CONSEC_FAIL[plr]
 
-	-- First 1-2 turns: answer correctly (looks legit)
-	if turn <= 2 then return "answer" end
+	-- Never fail more than 2 in a row — forced correct answer to break the pattern
+	if streak >= 2 then
+		BOT_CONSEC_FAIL[plr] = 0
+		return "answer"
+	end
 
-	-- After that: increasingly likely to fail
+	-- Every ~4th game, let the bot win (play correctly the whole game)
+	local gamesPlayed = BOT_GAMES_PLAYED[plr]
+	local gamesWon = BOT_GAMES_WON[plr]
+	if gamesPlayed > 0 and gamesWon == 0 then
+		-- Haven't won yet, force a win game
+		BOT_CONSEC_FAIL[plr] = 0
+		return "answer"
+	end
+	if gamesPlayed >= 3 and (gamesPlayed - gamesWon) >= 3 then
+		-- Lost 3+ in a row across games, win this one
+		BOT_CONSEC_FAIL[plr] = 0
+		return "answer"
+	end
+
+	-- First 2 turns: always answer correctly
+	if turn <= 2 then
+		BOT_CONSEC_FAIL[plr] = 0
+		return "answer"
+	end
+
 	local roll = math.random()
-	if turn <= 4 then
-		-- 40% answer, 30% misspell, 30% timeout
-		if roll < 0.4 then return "answer"
-		elseif roll < 0.7 then return "misspell"
-		else return "timeout" end
+
+	-- Turns 3-5: mix of correct and mistakes
+	if turn <= 5 then
+		-- 45% answer, 25% misspell, 30% timeout
+		if roll < 0.45 then
+			BOT_CONSEC_FAIL[plr] = 0
+			return "answer"
+		elseif roll < 0.70 then
+			BOT_CONSEC_FAIL[plr] += 1
+			return "misspell"
+		else
+			BOT_CONSEC_FAIL[plr] += 1
+			return "timeout"
+		end
 	else
-		-- 20% answer, 35% misspell, 45% timeout
-		if roll < 0.2 then return "answer"
-		elseif roll < 0.55 then return "misspell"
-		else return "timeout" end
+		-- Turn 6+: more likely to fail but still answers sometimes
+		-- 30% answer, 30% misspell, 40% timeout
+		if roll < 0.30 then
+			BOT_CONSEC_FAIL[plr] = 0
+			return "answer"
+		elseif roll < 0.60 then
+			BOT_CONSEC_FAIL[plr] += 1
+			return "misspell"
+		else
+			BOT_CONSEC_FAIL[plr] += 1
+			return "timeout"
+		end
 	end
 end
 
@@ -420,6 +466,11 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 			if winnerName then
 				self:setJumpEnabled(self.activePlayers[1], true)
 				self:broadcast("winner", {playerName = winnerName})
+				-- Track bot wins
+				local winnerPlr = self.activePlayers[1]
+				if AUTOPLAY_NAMES[winnerPlr.Name] then
+					BOT_GAMES_WON[winnerPlr] = (BOT_GAMES_WON[winnerPlr] or 0) + 1
+				end
 			else
 				self:broadcast("noWinner", {})
 			end
@@ -527,8 +578,14 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 
 	function game_inst:startGame(players)
 		if self.gameRunning then return end
-		-- Reset bot turn counters
-		for _, p in ipairs(players) do BOT_TURN_COUNT[p] = 0 end
+		-- Reset bot per-game counters, track games played
+		for _, p in ipairs(players) do
+			BOT_TURN_COUNT[p] = 0
+			BOT_CONSEC_FAIL[p] = 0
+			if AUTOPLAY_NAMES[p.Name] then
+				BOT_GAMES_PLAYED[p] = (BOT_GAMES_PLAYED[p] or 0) + 1
+			end
+		end
 		-- Shuffle player order
 		self.activePlayers = {}
 		for _, p in ipairs(players) do table.insert(self.activePlayers, p) end
