@@ -17,29 +17,57 @@ if not TypingUpdate then
 	TypingUpdate.Parent = ReplicatedStorage
 end
 
+
 local TURN_TIME = 15
 local MAX_HEARTS = 3
-local CHECK_DICTIONARY = true
+local MAX_CROSSES = 5
 local NEXT_GAME_DELAY = 5
 
 -- Tracks which game instance each player is currently in
 local playerToInstance = {}
+
+-- ============ WORD LIST (loaded from GitHub on startup) ============
+local validWords = {} -- set: validWords["makan"] = true
+local dictionaryLoaded = false
+
+local function loadDictionary()
+	local WORD_LIST_URLS = {
+		"https://raw.githubusercontent.com/damzaky/kumpulan-kata-bahasa-indonesia-KBBI/master/list_1.0.0.txt",
+		"https://raw.githubusercontent.com/agulagul/Indonesia-words/master/kata.txt",
+	}
+	for _, url in ipairs(WORD_LIST_URLS) do
+		local ok, result = pcall(function()
+			return HttpService:RequestAsync({Url = url, Method = "GET"})
+		end)
+		if ok and result.StatusCode == 200 and #result.Body > 100 then
+			local count = 0
+			for line in result.Body:gmatch("[^\r\n]+") do
+				local w = line:lower():match("^%s*(%a+)%s*$")
+				if w and #w >= 3 then
+					validWords[w] = true
+					count = count + 1
+				end
+			end
+			dictionaryLoaded = true
+			print("Sambung Kata: Loaded " .. count .. " words from dictionary!")
+			return
+		else
+			warn("Sambung Kata: Failed to load from " .. url)
+		end
+	end
+	warn("Sambung Kata: Could not load any word list! Dictionary check disabled.")
+end
+
+task.spawn(loadDictionary)
 
 -- ============ WORD VALIDATION ============
 
 local function isValidWord(word)
 	if #word < 3 then return false, "Kata terlalu pendek! (min 3 huruf)" end
 	if not word:match("^%a+$") then return false, "Hanya huruf yang diperbolehkan!" end
-	if CHECK_DICTIONARY then
-		local ok, result = pcall(function()
-			return HttpService:GetAsync("https://kbbi.kemendikdasmen.go.id/entri/" .. word, true)
-		end)
-		if not ok then warn("KBBI tidak bisa diakses: " .. word); return true, nil end
-		if result and result:find("Entri tidak ditemukan.", 1, true) then
-			return false, "Kata '" .. word .. "' tidak ada di KBBI!"
-		end
-		if result and (result:find("BatasSehari", 1, true) or result:find("Banned", 1, true)) then
-			warn("KBBI rate limit!"); return true, nil
+	if dictionaryLoaded then
+		if not validWords[word:lower()] then
+			return false, "Kata '" .. word .. "' tidak ada di kamus!"
 		end
 	end
 	return true, nil
@@ -48,84 +76,78 @@ end
 -- ============ GAME INSTANCE ============
 -- One instance is created for each location (hut/campfire)
 
-local function createGameInstance(locationName, seats, model)
+local function createGameInstance(locationName, seats, model, maxPlayers, minPlayers)
+	maxPlayers = maxPlayers or 2
+	minPlayers = minPlayers or maxPlayers
 	local game_inst = {
 		name = locationName,
 		model = model,
 		seats = seats,
+		maxPlayers = maxPlayers,
+		minPlayers = minPlayers,
 		seatToPlayer = {},
-		seatedPlayers = {},   -- ordered: [1] and [2] are active, rest are queue
+		seatedPlayers = {},
 		gameRunning = false,
 		activePlayers = {},
 		currentTurnIndex = 1,
 		currentWord = "",
 		usedWords = {},
 		playerHearts = {},
+		playerCrosses = {},
+		forcedPrefix = nil,
 		countdownRunning = false,
-		lastLetterHistory = {},  -- tracks consecutive repeated starting letters
-		billboard = nil,
-		countLabel = nil,
+		lastLetterHistory = {},
 	}
 
-	-- Create floating player count billboard above the table
-	local function setupBillboard()
+	-- Add ProximityPrompt to the table
+	local function setupPrompt()
 		if not model then return end
-
-		-- Get the table position - model is the table itself
-		local tablePos = nil
-		local topY = 0
-
+		-- Find a BasePart to attach the prompt to
+		local promptParent = nil
 		if model:IsA("BasePart") then
-			tablePos = model.Position
-			topY = model.Position.Y + model.Size.Y / 2
+			promptParent = model
 		elseif model:IsA("Model") then
-			-- Find the highest point of the table model
-			for _, child in pairs(model:GetDescendants()) do
-				if child:IsA("BasePart") then
-					if not tablePos then tablePos = child.Position end
-					local partTop = child.Position.Y + child.Size.Y / 2
-					if partTop > topY then
-						topY = partTop
-						tablePos = Vector3.new(child.Position.X, child.Position.Y, child.Position.Z)
-					end
+			promptParent = model.PrimaryPart
+			if not promptParent then
+				for _, child in pairs(model:GetDescendants()) do
+					if child:IsA("BasePart") then promptParent = child; break end
 				end
 			end
 		end
+		if not promptParent then return end
 
-		if not tablePos then return end
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "SambungKataPrompt"
+		prompt.ActionText = "Bergabung"
+		prompt.ObjectText = "Meja " .. maxPlayers .. " Pemain"
+		prompt.MaxActivationDistance = 12
+		prompt.HoldDuration = 0
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = promptParent
+		game_inst.prompt = prompt
 
-		-- Create an invisible anchor part above the table
-		local anchor = Instance.new("Part")
-		anchor.Name = "CountAnchor"
-		anchor.Size = Vector3.new(1, 1, 1)
-		anchor.Position = Vector3.new(tablePos.X, topY + 4.5, tablePos.Z)
-		anchor.Anchored = true
-		anchor.CanCollide = false
-		anchor.Transparency = 1
-		anchor.Parent = workspace
-
-		local bb = Instance.new("BillboardGui")
-		bb.Name = "PlayerCount"
-		bb.Size = UDim2.new(0, 90, 0, 45)
-		bb.StudsOffset = Vector3.new(0, 1, 0)
-		bb.AlwaysOnTop = true
-		bb.MaxDistance = 80
-		bb.Adornee = anchor
-		bb.Parent = anchor
-		-- Set initial player count attribute
-		bb:SetAttribute("playerCount", 0)
-
-		game_inst.billboard = bb
-		-- countLabel will be created by each client with their own size
+		prompt.Triggered:Connect(function(plr)
+			-- Already seated here
+			if table.find(game_inst.seatedPlayers, plr) then return end
+			-- Find an empty seat
+			for _, seat in pairs(game_inst.seats) do
+				if not seat.Occupant then
+					local char = plr.Character
+					if not char then return end
+					local hum = char:FindFirstChild("Humanoid")
+					if not hum then return end
+					seat:Sit(hum)
+					return
+				end
+			end
+		end)
 	end
 
-	setupBillboard()
+	setupPrompt()
 
 	function game_inst:updatePlayerCount()
-		if self.billboard then
-			local count = #self.seatedPlayers
-			-- Set attribute for clients to read
-			self.billboard:SetAttribute("playerCount", count)
+		if self.prompt then
+			self.prompt.Enabled = #self.seatedPlayers < self.maxPlayers and not self.gameRunning
 		end
 	end
 
@@ -144,10 +166,11 @@ local function createGameInstance(locationName, seats, model)
 	end
 
 	function game_inst:getActiveNames()
-		return {
-			self.activePlayers[1] and self.activePlayers[1].Name or "",
-			self.activePlayers[2] and self.activePlayers[2].Name or ""
-		}
+		local names = {}
+		for i, p in ipairs(self.activePlayers) do
+			names[i] = p.Name
+		end
+		return names
 	end
 
 	function game_inst:getHeartsTable()
@@ -223,6 +246,33 @@ local function createGameInstance(locationName, seats, model)
 		task.delay(1.2, function() self:killPlayer(plr) end)
 	end
 
+	function game_inst:onWrongAnswer(plr, reason)
+		if not self.playerCrosses[plr] then self.playerCrosses[plr] = MAX_CROSSES end
+		self.playerCrosses[plr] -= 1
+		self:broadcast("crossLost", {
+			playerName = plr.Name,
+			crossesLeft = self.playerCrosses[plr],
+			reason = reason
+		})
+		if self.playerCrosses[plr] <= 0 then
+			-- All crosses gone: lose a heart, randomize the required letter, switch turn
+			self:onMistake(plr, "5 kesempatan habis!")
+			-- Pick a random new starting letter
+			local letters = "abcdefghijklmnopqrstuvwxyz"
+			local idx = math.random(1, #letters)
+			self.forcedPrefix = letters:sub(idx, idx)
+			task.wait(0.3)
+			if self.gameRunning then
+				if table.find(self.activePlayers, plr) then
+					self.currentTurnIndex += 1
+					if self.currentTurnIndex > #self.activePlayers then self.currentTurnIndex = 1 end
+				end
+				self:startTurn()
+			end
+		end
+		-- If crosses remain, player stays on turn (timer keeps running)
+	end
+
 	function game_inst:onMistake(plr, reason)
 		if not self.playerHearts[plr] or self.playerHearts[plr] <= 0 then return end
 		self.playerHearts[plr] -= 1
@@ -250,6 +300,8 @@ local function createGameInstance(locationName, seats, model)
 		self:broadcast("gameEnded", {reason = reason})
 		self.activePlayers = {}
 		self.playerHearts = {}
+		self.playerCrosses = {}
+		self.forcedPrefix = nil
 		self.currentWord = ""
 		self.usedWords = {}
 		self.lastLetterHistory = {}
@@ -272,6 +324,8 @@ local function createGameInstance(locationName, seats, model)
 			self.gameRunning = false
 			self.activePlayers = {}
 			self.playerHearts = {}
+			self.playerCrosses = {}
+			self.forcedPrefix = nil
 			self.currentWord = ""
 			self.usedWords = {}
 			self.currentTurnIndex = 1
@@ -291,14 +345,18 @@ local function createGameInstance(locationName, seats, model)
 			return
 		end
 
+		self.playerCrosses[plr] = MAX_CROSSES
 		local lastLetter = self:getRequiredPrefix()
+		self.forcedPrefix = nil  -- clear after reading
 
 		self:broadcast("turn", {
 			playerName = plr.Name,
 			lastWord = self.currentWord,
 			lastLetter = lastLetter,
 			hearts = self:getHeartsTable(),
-			activeNames = self:getActiveNames()
+			activeNames = self:getActiveNames(),
+			crosses = MAX_CROSSES,
+			maxCrosses = MAX_CROSSES,
 		})
 
 		local turnPlayer = plr
@@ -324,10 +382,15 @@ local function createGameInstance(locationName, seats, model)
 		end
 	end
 
-	function game_inst:startGame(p1, p2)
+	function game_inst:startGame(players)
 		if self.gameRunning then return end
-		self.activePlayers = {p1, p2}
-		if math.random(1,2) == 2 then self.activePlayers = {p2, p1} end
+		-- Shuffle player order
+		self.activePlayers = {}
+		for _, p in ipairs(players) do table.insert(self.activePlayers, p) end
+		for i = #self.activePlayers, 2, -1 do
+			local j = math.random(1, i)
+			self.activePlayers[i], self.activePlayers[j] = self.activePlayers[j], self.activePlayers[i]
+		end
 		self.currentTurnIndex = 1
 		self.currentWord = ""
 		self.usedWords = {}
@@ -336,12 +399,14 @@ local function createGameInstance(locationName, seats, model)
 		self.countdownRunning = false
 		for _, p in pairs(self.activePlayers) do
 			self.playerHearts[p] = MAX_HEARTS
+			self.playerCrosses[p] = MAX_CROSSES
 			self:setJumpEnabled(p, false)
 		end
+		self.forcedPrefix = nil
 		self:broadcast("gameStart", {
-			p1 = self.activePlayers[1].Name,
-			p2 = self.activePlayers[2].Name,
-			maxHearts = MAX_HEARTS
+			players = self:getActiveNames(),
+			maxHearts = MAX_HEARTS,
+			maxCrosses = MAX_CROSSES,
 		})
 		task.wait(2)
 		self:startTurn()
@@ -349,23 +414,38 @@ local function createGameInstance(locationName, seats, model)
 
 	function game_inst:checkAndMaybeStart()
 		if self.gameRunning or self.countdownRunning then return end
-		if #self.seatedPlayers < 2 then return end
-		local p1, p2 = self.seatedPlayers[1], self.seatedPlayers[2]
-		if not p1 or not p2 or not p1.Parent or not p2.Parent then return end
+		if #self.seatedPlayers < self.minPlayers then return end
+		-- Snapshot current players for countdown validation
+		local snapshot = {}
+		for i, p in ipairs(self.seatedPlayers) do
+			if i > self.maxPlayers then break end
+			if p and p.Parent then table.insert(snapshot, p) end
+		end
+		if #snapshot < self.minPlayers then return end
 		self.countdownRunning = true
 		local inst = self
 		task.spawn(function()
 			for i = 5, 1, -1 do
-				if inst.gameRunning or inst.seatedPlayers[1] ~= p1 or inst.seatedPlayers[2] ~= p2 then
-					inst.countdownRunning = false; return
+				if inst.gameRunning then inst.countdownRunning = false; return end
+				-- Check that enough players are still seated
+				local still = 0
+				for _, sp in ipairs(snapshot) do
+					if table.find(inst.seatedPlayers, sp) then still += 1 end
 				end
+				if still < inst.minPlayers then inst.countdownRunning = false; return end
 				inst:broadcast("countdown", {seconds = i})
 				task.wait(1)
 			end
 			inst.countdownRunning = false
-			if not inst.gameRunning and #inst.seatedPlayers >= 2
-				and inst.seatedPlayers[1] == p1 and inst.seatedPlayers[2] == p2 then
-				inst:startGame(p1, p2)
+			-- Collect players that are still seated (up to maxPlayers)
+			local gamePlayers = {}
+			for _, sp in ipairs(snapshot) do
+				if table.find(inst.seatedPlayers, sp) then
+					table.insert(gamePlayers, sp)
+				end
+			end
+			if not inst.gameRunning and #gamePlayers >= inst.minPlayers then
+				inst:startGame(gamePlayers)
 			end
 		end)
 	end
@@ -383,17 +463,17 @@ local function createGameInstance(locationName, seats, model)
 				currentWord = self.currentWord,
 				activeNames = self:getActiveNames(),
 				hearts = self:getHeartsTable(),
-				queuePos = math.max(0, idx - 2)
+				queuePos = math.max(0, idx - self.maxPlayers)
 			})
-		elseif idx <= 2 then
-			if #self.seatedPlayers >= 2 then
+		elseif idx <= self.maxPlayers then
+			if #self.seatedPlayers >= self.minPlayers then
 				self:checkAndMaybeStart()
 			else
 				GameUpdate:FireClient(plr, "waitingOpponent", {})
 			end
 		else
 			GameUpdate:FireClient(plr, "spectating", {
-				currentWord = "", activeNames = {}, hearts = {}, queuePos = idx - 2
+				currentWord = "", activeNames = {}, hearts = {}, queuePos = idx - self.maxPlayers
 			})
 		end
 	end
@@ -414,14 +494,19 @@ local function createGameInstance(locationName, seats, model)
 			return
 		end
 		if not self.gameRunning then
-			if #self.seatedPlayers == 1 then
-				GameUpdate:FireClient(self.seatedPlayers[1], "waitingOpponent", {})
+			if #self.seatedPlayers > 0 and #self.seatedPlayers < self.minPlayers then
+				for _, p in pairs(self.seatedPlayers) do
+					if p and p.Parent then
+						GameUpdate:FireClient(p, "waitingOpponent", {})
+					end
+				end
 			end
 			self:checkAndMaybeStart()
 		end
 	end
 
 	function game_inst:getRequiredPrefix()
+		if self.forcedPrefix then return self.forcedPrefix end
 		if self.currentWord == "" then return "" end
 		local lastChar = string.sub(self.currentWord, -1, -1):lower()
 		local history = self.lastLetterHistory
@@ -442,38 +527,29 @@ local function createGameInstance(locationName, seats, model)
 		if self:getCurrentPlayer() ~= plr then return end
 
 		local valid, errMsg = isValidWord(word)
-		if not valid then GameUpdate:FireClient(plr, "error", {message = errMsg}); return end
+		if not valid then
+			self:onWrongAnswer(plr, errMsg)
+			return
+		end
 
 		if self.currentWord ~= "" then
 			local prefix = self:getRequiredPrefix()
 			local wordStart = string.sub(word, 1, #prefix):lower()
 			if wordStart ~= prefix then
 				local hint = prefix:upper()
-				self:onMistake(plr, "huruf awal salah! Harus dimulai '" .. hint .. "'")
-				task.wait(0.3)
-				if self.gameRunning then
-					if table.find(self.activePlayers, plr) then
-						self.currentTurnIndex += 1
-						if self.currentTurnIndex > #self.activePlayers then self.currentTurnIndex = 1 end
-					end
-					self:startTurn()
-				end
+				self:onWrongAnswer(plr, "Huruf awal salah! Harus dimulai '" .. hint .. "'")
 				return
 			end
 		end
 
 		if self.usedWords[word] then
-			self:onMistake(plr, "kata '" .. word .. "' sudah dipakai!")
-			task.wait(0.3)
-			if self.gameRunning then
-				if table.find(self.activePlayers, plr) then
-					self.currentTurnIndex += 1
-					if self.currentTurnIndex > #self.activePlayers then self.currentTurnIndex = 1 end
-				end
-				self:startTurn()
-			end
+			self:onWrongAnswer(plr, "Kata '" .. word .. "' sudah dipakai!")
 			return
 		end
+
+		-- Word accepted — reset crosses, clear forced prefix
+		self.playerCrosses[plr] = MAX_CROSSES
+		self.forcedPrefix = nil
 
 		-- Track the ending letter for repeat detection
 		local endingLetter = string.sub(word, -1, -1):lower()
@@ -612,13 +688,22 @@ local function setupLocations()
 
 	local count = 0
 	for tbl, seats in pairs(tableSeats) do
-		local inst = createGameInstance(tbl.Name, seats, tbl)
+		-- Detect if table is inside a "4 Player" group
+		local maxP, minP = 2, 2
+		local parent = tbl.Parent
+		while parent and parent ~= workspace do
+			if parent.Name:lower():find("4 player") or parent.Name:lower():find("4player") then
+				maxP = 4; minP = 3; break
+			end
+			parent = parent.Parent
+		end
+		local inst = createGameInstance(tbl.Name, seats, tbl, maxP, minP)
 		modelToInstance[tbl] = inst
 		for _, seat in pairs(seats) do
 			seatToInstance[seat] = inst
 		end
 		count += 1
-		print("  -> " .. tbl.Name .. " with " .. #seats .. " seats")
+		print("  -> " .. tbl.Name .. " (" .. maxP .. "P, min " .. minP .. ") with " .. #seats .. " seats")
 	end
 
 	print("Tables found: " .. #tables)
