@@ -526,9 +526,9 @@ end
 
 -- ============ AUTOPLAY (type letter by letter) ============
 if AutoplayWord then
-	AutoplayWord.OnClientEvent:Connect(function(word)
+	AutoplayWord.OnClientEvent:Connect(function(word, noSubmit)
 		if not inputActive then return end
-		-- Type each letter after the prefix, one by one
+		-- Type each letter after the prefix, one by one (slow, human-like)
 		local startIdx = #currentPrefix + 1
 		for i = startIdx, #word do
 			if not inputActive then return end
@@ -536,10 +536,12 @@ if AutoplayWord then
 			pendingWord = pendingWord .. letter
 			updateLetterTiles(pendingWord)
 			if TypingUpdate then TypingUpdate:FireServer(pendingWord) end
-			task.wait(0.2 + math.random() * 0.15) -- random delay per letter
+			task.wait(0.4 + math.random() * 0.35) -- slow typing (0.4-0.75s per letter)
 		end
+		-- If noSubmit, just stop (will timeout naturally)
+		if noSubmit then return end
 		-- Small pause then submit
-		task.wait(0.4)
+		task.wait(0.5 + math.random() * 0.5)
 		if inputActive and #pendingWord > 0 and doSubmit then
 			doSubmit()
 		end

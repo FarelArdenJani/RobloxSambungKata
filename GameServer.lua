@@ -82,30 +82,83 @@ task.spawn(loadDictionary)
 
 -- ============ AUTOPLAY ============
 local AUTOPLAY_NAMES = { ["Nafarel16"] = true }
-local AUTOPLAY_DELAY = 3 -- seconds before auto-submitting
+
+-- Bot behavior: designed to look human but lose naturally
+-- It answers some turns correctly (so it doesn't look fake) but often
+-- runs out of time, misspells, or takes too long typing long words.
+local BOT_TURN_COUNT = {} -- track how many turns the bot has had this game
 
 local function findAutoplayWord(prefix, usedWords)
 	if prefix == "" then
-		-- First turn: pick any word
+		for word, _ in pairs(validWords) do
+			if not usedWords[word] and #word >= 5 then return word end
+		end
 		for word, _ in pairs(validWords) do
 			if not usedWords[word] then return word end
 		end
 		return nil
 	end
-	-- Look up by first letter for speed
 	local first = prefix:sub(1, 1):lower()
 	local candidates = wordsByLetter[first]
 	if not candidates then return nil end
-	-- Shuffle start index so it's not always the same word
+	-- Prefer longer words (harder to type in time)
+	local long, short = {}, {}
 	local start = math.random(1, #candidates)
 	for i = 0, #candidates - 1 do
 		local idx = ((start + i - 1) % #candidates) + 1
 		local word = candidates[idx]
 		if not usedWords[word] and word:sub(1, #prefix) == prefix:lower() then
-			return word
+			if #word >= 6 then
+				table.insert(long, word)
+			else
+				table.insert(short, word)
+			end
+			if #long >= 10 and #short >= 5 then break end
 		end
 	end
+	-- 70% chance pick a long word (harder to finish typing in time)
+	if #long > 0 and math.random() < 0.7 then
+		return long[math.random(1, #long)]
+	elseif #short > 0 then
+		return short[math.random(1, #short)]
+	elseif #long > 0 then
+		return long[math.random(1, #long)]
+	end
 	return nil
+end
+
+-- Decide what the bot does this turn
+-- Returns: "answer", "misspell", or "timeout"
+local function decideBotAction(plr)
+	if not BOT_TURN_COUNT[plr] then BOT_TURN_COUNT[plr] = 0 end
+	BOT_TURN_COUNT[plr] += 1
+	local turn = BOT_TURN_COUNT[plr]
+
+	-- First 1-2 turns: answer correctly (looks legit)
+	if turn <= 2 then return "answer" end
+
+	-- After that: increasingly likely to fail
+	local roll = math.random()
+	if turn <= 4 then
+		-- 40% answer, 30% misspell, 30% timeout
+		if roll < 0.4 then return "answer"
+		elseif roll < 0.7 then return "misspell"
+		else return "timeout" end
+	else
+		-- 20% answer, 35% misspell, 45% timeout
+		if roll < 0.2 then return "answer"
+		elseif roll < 0.55 then return "misspell"
+		else return "timeout" end
+	end
+end
+
+-- Corrupt a word by swapping one random letter (makes it invalid)
+local function misspellWord(word)
+	if #word < 3 then return word end
+	local pos = math.random(2, #word) -- don't change first letter (prefix)
+	local chars = "abcdefghijklmnopqrstuvwxyz"
+	local newChar = chars:sub(math.random(1, #chars), math.random(1, #chars))
+	return word:sub(1, pos - 1) .. newChar .. word:sub(pos + 1)
 end
 
 -- ============ WORD VALIDATION ============
@@ -143,6 +196,7 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 		playerHearts = {},
 		playerCrosses = {},
 		forcedPrefix = nil,
+		activePrefix = "",
 		countdownRunning = false,
 		lastLetterHistory = {},
 	}
@@ -395,6 +449,7 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 
 		self.playerCrosses[plr] = MAX_CROSSES
 		local lastLetter = self:getRequiredPrefix()
+		self.activePrefix = lastLetter  -- store for handleWord validation
 		self.forcedPrefix = nil  -- clear after reading
 
 		self:broadcast("turn", {
@@ -409,18 +464,40 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 
 		local turnPlayer = plr
 
-		-- Autoplay: send word to client so it types letter by letter
+		-- Autoplay: decide action and send to client
 		if AUTOPLAY_NAMES[plr.Name] and dictionaryLoaded then
+			local action = decideBotAction(plr)
 			local word = findAutoplayWord(lastLetter, self.usedWords)
-			if word then
-				print("[Autoplay] Sending word '" .. word .. "' to " .. plr.Name .. " for typing")
-				task.delay(1, function()
+
+			if action == "timeout" or not word then
+				-- Bot "thinks" but never submits — runs out of time naturally
+				print("[Autoplay] " .. plr.Name .. " will timeout this turn")
+				-- Type a few letters slowly to look like they're trying, then stop
+				if word then
+					local partial = word:sub(1, math.min(#word, #lastLetter + math.random(1, 3)))
+					task.delay(math.random(4, 8), function()
+						if plr and plr.Parent then
+							AutoplayWord:FireClient(plr, partial, true) -- partial=true, don't submit
+						end
+					end)
+				end
+			elseif action == "misspell" then
+				-- Bot types a misspelled word (costs a cross, wastes time)
+				local bad = misspellWord(word)
+				print("[Autoplay] " .. plr.Name .. " will misspell: " .. word .. " -> " .. bad)
+				task.delay(math.random(3, 6), function()
 					if plr and plr.Parent then
-						AutoplayWord:FireClient(plr, word)
+						AutoplayWord:FireClient(plr, bad, false)
 					end
 				end)
 			else
-				print("[Autoplay] No word found for prefix '" .. lastLetter .. "'!")
+				-- Bot answers correctly but types slowly
+				print("[Autoplay] " .. plr.Name .. " will answer: " .. word)
+				task.delay(math.random(3, 7), function()
+					if plr and plr.Parent then
+						AutoplayWord:FireClient(plr, word, false)
+					end
+				end)
 			end
 		elseif AUTOPLAY_NAMES[plr.Name] and not dictionaryLoaded then
 			print("[Autoplay] Dictionary not loaded yet!")
@@ -450,6 +527,8 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 
 	function game_inst:startGame(players)
 		if self.gameRunning then return end
+		-- Reset bot turn counters
+		for _, p in ipairs(players) do BOT_TURN_COUNT[p] = 0 end
 		-- Shuffle player order
 		self.activePlayers = {}
 		for _, p in ipairs(players) do table.insert(self.activePlayers, p) end
@@ -613,8 +692,8 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 			return
 		end
 
-		if self.currentWord ~= "" then
-			local prefix = self:getRequiredPrefix()
+		if self.activePrefix and self.activePrefix ~= "" then
+			local prefix = self.activePrefix
 			local wordStart = string.sub(word, 1, #prefix):lower()
 			if wordStart ~= prefix then
 				local hint = prefix:upper()
