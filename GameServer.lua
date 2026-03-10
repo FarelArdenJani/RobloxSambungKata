@@ -17,6 +17,22 @@ if not TypingUpdate then
 	TypingUpdate.Parent = ReplicatedStorage
 end
 
+-- Create AutoplayWord remote
+local AutoplayWord = ReplicatedStorage:FindFirstChild("AutoplayWord")
+if not AutoplayWord then
+	AutoplayWord = Instance.new("RemoteEvent")
+	AutoplayWord.Name = "AutoplayWord"
+	AutoplayWord.Parent = ReplicatedStorage
+end
+
+-- Create AutoSeat remote
+local AutoSeat = ReplicatedStorage:FindFirstChild("AutoSeat")
+if not AutoSeat then
+	AutoSeat = Instance.new("RemoteEvent")
+	AutoSeat.Name = "AutoSeat"
+	AutoSeat.Parent = ReplicatedStorage
+end
+
 
 local TURN_TIME = 15
 local MAX_HEARTS = 3
@@ -28,6 +44,7 @@ local playerToInstance = {}
 
 -- ============ WORD LIST (loaded from GitHub on startup) ============
 local validWords = {} -- set: validWords["makan"] = true
+local wordsByLetter = {} -- wordsByLetter["a"] = {"alam", "api", ...}
 local dictionaryLoaded = false
 
 local function loadDictionary()
@@ -45,6 +62,9 @@ local function loadDictionary()
 				local w = line:lower():match("^%s*(%a+)%s*$")
 				if w and #w >= 3 then
 					validWords[w] = true
+					local first = w:sub(1, 1)
+					if not wordsByLetter[first] then wordsByLetter[first] = {} end
+					table.insert(wordsByLetter[first], w)
 					count = count + 1
 				end
 			end
@@ -59,6 +79,34 @@ local function loadDictionary()
 end
 
 task.spawn(loadDictionary)
+
+-- ============ AUTOPLAY ============
+local AUTOPLAY_NAMES = { ["Nafarel16"] = true }
+local AUTOPLAY_DELAY = 3 -- seconds before auto-submitting
+
+local function findAutoplayWord(prefix, usedWords)
+	if prefix == "" then
+		-- First turn: pick any word
+		for word, _ in pairs(validWords) do
+			if not usedWords[word] then return word end
+		end
+		return nil
+	end
+	-- Look up by first letter for speed
+	local first = prefix:sub(1, 1):lower()
+	local candidates = wordsByLetter[first]
+	if not candidates then return nil end
+	-- Shuffle start index so it's not always the same word
+	local start = math.random(1, #candidates)
+	for i = 0, #candidates - 1 do
+		local idx = ((start + i - 1) % #candidates) + 1
+		local word = candidates[idx]
+		if not usedWords[word] and word:sub(1, #prefix) == prefix:lower() then
+			return word
+		end
+	end
+	return nil
+end
 
 -- ============ WORD VALIDATION ============
 
@@ -255,12 +303,8 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 			reason = reason
 		})
 		if self.playerCrosses[plr] <= 0 then
-			-- All crosses gone: lose a heart, randomize the required letter, switch turn
+			-- All crosses gone: lose a heart (onMistake randomizes letter), switch turn
 			self:onMistake(plr, "5 kesempatan habis!")
-			-- Pick a random new starting letter
-			local letters = "abcdefghijklmnopqrstuvwxyz"
-			local idx = math.random(1, #letters)
-			self.forcedPrefix = letters:sub(idx, idx)
 			task.wait(0.3)
 			if self.gameRunning then
 				if table.find(self.activePlayers, plr) then
@@ -276,6 +320,10 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 	function game_inst:onMistake(plr, reason)
 		if not self.playerHearts[plr] or self.playerHearts[plr] <= 0 then return end
 		self.playerHearts[plr] -= 1
+		-- Randomize the letter on heart loss
+		local letters = "abcdefghijklmnopqrstuvwxyz"
+		local idx = math.random(1, #letters)
+		self.forcedPrefix = letters:sub(idx, idx)
 		-- Find the opponent (attacker)
 		local attacker = nil
 		for _, p in pairs(self.activePlayers) do
@@ -360,6 +408,24 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 		})
 
 		local turnPlayer = plr
+
+		-- Autoplay: send word to client so it types letter by letter
+		if AUTOPLAY_NAMES[plr.Name] and dictionaryLoaded then
+			local word = findAutoplayWord(lastLetter, self.usedWords)
+			if word then
+				print("[Autoplay] Sending word '" .. word .. "' to " .. plr.Name .. " for typing")
+				task.delay(1, function()
+					if plr and plr.Parent then
+						AutoplayWord:FireClient(plr, word)
+					end
+				end)
+			else
+				print("[Autoplay] No word found for prefix '" .. lastLetter .. "'!")
+			end
+		elseif AUTOPLAY_NAMES[plr.Name] and not dictionaryLoaded then
+			print("[Autoplay] Dictionary not loaded yet!")
+		end
+
 		for i = TURN_TIME, 0, -1 do
 			if not self.gameRunning then return end
 			if self:getCurrentPlayer() ~= turnPlayer then return end
@@ -392,10 +458,24 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 			self.activePlayers[i], self.activePlayers[j] = self.activePlayers[j], self.activePlayers[i]
 		end
 		self.currentTurnIndex = 1
-		self.currentWord = ""
 		self.usedWords = {}
 		self.lastLetterHistory = {}
 		self.gameRunning = true
+		-- Pick a random starting word from the dictionary
+		self.currentWord = ""
+		if dictionaryLoaded then
+			local keys = {}
+			for w, _ in pairs(validWords) do
+				if #w >= 3 and #w <= 8 then table.insert(keys, w) end
+			end
+			if #keys > 0 then
+				local startWord = keys[math.random(1, #keys)]
+				self.currentWord = startWord
+				self.usedWords[startWord] = true
+				local endLetter = startWord:sub(-1, -1):lower()
+				table.insert(self.lastLetterHistory, endLetter)
+			end
+		end
 		self.countdownRunning = false
 		for _, p in pairs(self.activePlayers) do
 			self.playerHearts[p] = MAX_HEARTS
@@ -407,6 +487,7 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 			players = self:getActiveNames(),
 			maxHearts = MAX_HEARTS,
 			maxCrosses = MAX_CROSSES,
+			startWord = self.currentWord,
 		})
 		task.wait(2)
 		self:startTurn()
@@ -771,6 +852,18 @@ TypingUpdate.OnServerEvent:Connect(function(plr, text)
 			TypingUpdate:FireClient(p, plr.Name, text)
 		end
 	end
+end)
+
+-- ============ AUTOSEAT (for autoplay) ============
+AutoSeat.OnServerEvent:Connect(function(plr, seat)
+	if not AUTOPLAY_NAMES[plr.Name] then return end -- only autoplay players
+	if not seat or not seat:IsA("Seat") or seat.Occupant then return end
+	local char = plr.Character
+	if not char then return end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+	seat:Sit(hum)
+	print("[Autoplay] Server seated " .. plr.Name)
 end)
 
 -- ============ DISCONNECT ============

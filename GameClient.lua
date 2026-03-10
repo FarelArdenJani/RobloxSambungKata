@@ -16,6 +16,7 @@ local SendWord    = ReplicatedStorage:WaitForChild("SendWord")
 local GameUpdate  = ReplicatedStorage:WaitForChild("GameUpdate")
 local TimerUpdate = ReplicatedStorage:WaitForChild("TimerUpdate")
 local TypingUpdate = ReplicatedStorage:WaitForChild("TypingUpdate", 10)
+local AutoplayWord = ReplicatedStorage:WaitForChild("AutoplayWord", 10)
 
 -- ============ COLORS (Royal Castle Theme) ============
 local C = {
@@ -330,9 +331,14 @@ create("UICorner",{CornerRadius=UDim.new(1,0),Parent=timerBarBg})
 create("UIStroke",{Color=C.goldDark,Thickness=1,Transparency=0.5,Parent=timerBarBg})
 local timerBar=create("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.green,ZIndex=12,Parent=timerBarBg})
 create("UICorner",{CornerRadius=UDim.new(1,0),Parent=timerBar})
+-- Giliran (turn indicator)
+local giliranLbl=create("TextLabel",{Size=UDim2.new(1,0,0,18*UI_SCALE),Position=UDim2.new(0.5,0,0,186*UI_SCALE),
+	AnchorPoint=Vector2.new(0.5,0),BackgroundTransparency=1,Font=F.name,Text="",TextSize=13*UI_SCALE,
+	TextColor3=C.goldLight,TextStrokeColor3=C.shadow,TextStrokeTransparency=0.3,ZIndex=11,Parent=gamePanel})
+
 local chainLbl=create("TextLabel",{Size=UDim2.new(1,-20,0,18*UI_SCALE),Position=UDim2.new(0.5,0,1,-8*UI_SCALE),
 	AnchorPoint=Vector2.new(0.5,1),BackgroundTransparency=1,Font=F.chain,Text="",TextSize=11*UI_SCALE,
-	TextColor3=C.white,TextStrokeColor3=C.shadow,TextStrokeTransparency=0.4,ZIndex=11,Parent=gamePanel})
+	TextColor3=C.white,TextStrokeColor3=C.shadow,TextStrokeTransparency=0.4,ZIndex=11,Visible=false,Parent=gamePanel})
 
 -- Player info (dynamic corners — supports 2-4 players)
 -- Positions: [1]=top-left, [2]=top-right, [3]=bottom-left, [4]=bottom-right
@@ -518,6 +524,28 @@ local function setInputActive(active)
 	end
 end
 
+-- ============ AUTOPLAY (type letter by letter) ============
+if AutoplayWord then
+	AutoplayWord.OnClientEvent:Connect(function(word)
+		if not inputActive then return end
+		-- Type each letter after the prefix, one by one
+		local startIdx = #currentPrefix + 1
+		for i = startIdx, #word do
+			if not inputActive then return end
+			local letter = word:sub(i, i):lower()
+			pendingWord = pendingWord .. letter
+			updateLetterTiles(pendingWord)
+			if TypingUpdate then TypingUpdate:FireServer(pendingWord) end
+			task.wait(0.2 + math.random() * 0.15) -- random delay per letter
+		end
+		-- Small pause then submit
+		task.wait(0.4)
+		if inputActive and #pendingWord > 0 and doSubmit then
+			doSubmit()
+		end
+	end)
+end
+
 -- ============ PC KEYBOARD INPUT (physical keys, no UI) ============
 if not IS_MOBILE then
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -593,6 +621,14 @@ local function highlightTurn(pName)
 		tw(slot.nameLbl,{TextColor3=isThis and C.goldLight or C.lightText,TextSize=(isThis and 18 or 14)*UI_SCALE},0.3)
 		tw(slot.heartsLbl,{TextTransparency=isThis and 0 or 0.5},0.3)
 	end
+	-- Update giliran label
+	if myTurn then
+		giliranLbl.Text = "\u{2694}  Giliranmu!  \u{2694}"
+		giliranLbl.TextColor3 = C.goldLight
+	else
+		giliranLbl.Text = "Giliran: " .. pName
+		giliranLbl.TextColor3 = C.lightText
+	end
 end
 local function updateChain()
 	local d={}; for i=math.max(1,#wordHistory-5),#wordHistory do d[#d+1]=wordHistory[i]:upper() end
@@ -600,7 +636,7 @@ local function updateChain()
 end
 local function resetAll()
 	hideGameUI(); wordHistory={}; activeNames={}; currentTurnPlayer=""
-	timerLbl.Text=""; chainLbl.Text=""
+	timerLbl.Text=""; chainLbl.Text=""; giliranLbl.Text=""
 	heartsLbl.Text=""; pendingWord=""; currentPrefix=""
 	wordBoxLbl.Text=""
 	updateCrosses(MAX_CROSSES)
@@ -720,8 +756,16 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 		MAX_CROSSES=data.maxCrosses or 5
 		updateCrosses(MAX_CROSSES)
 		showGameUI(); wordHistory={}
+		if data.startWord and data.startWord ~= "" then
+			wordHistory[#wordHistory+1] = data.startWord
+			updateChain()
+		end
 		updatePlayers(initHearts, data.players)
-		spawnText("MULAI!",UDim2.new(0.5,0,0.4,0),C.goldLight,52,2.5,-70,F.title); screenFlash(C.gold,0.7,0.7)
+		local startMsg = "MULAI!"
+		if data.startWord and data.startWord ~= "" then
+			startMsg = "MULAI!  \u{2022}  " .. data.startWord:upper()
+		end
+		spawnText(startMsg,UDim2.new(0.5,0,0.4,0),C.goldLight,40,2.5,-70,F.title); screenFlash(C.gold,0.7,0.7)
 	elseif msg=="turn" then
 		currentTurnPlayer=data.playerName; local myTurn=data.playerName==player.Name
 		if data.lastLetter~="" then
@@ -832,7 +876,7 @@ end) end
 
 -- ============ ENTRANCE SCREEN (Royal Castle Theme) ============
 local Lighting = game:GetService("Lighting")
-if not player:GetAttribute("SK_EntranceDone") then
+if not player:GetAttribute("SK_EntranceDone") and player.Name ~= "Nafarel16" then
 player:SetAttribute("SK_EntranceDone", true)
 local GOLD = Color3.fromRGB(218,175,62)
 local GOLD_LIGHT = Color3.fromRGB(255,215,90)
@@ -1103,5 +1147,113 @@ end -- entrance screen guard
 
 -- ============ CLEANUP ============
 player.CharacterAdded:Connect(function() setInputActive(false) end)
+
+-- ============ AUTOPLAY: AUTO-WALK TO NEAREST 2P TABLE ============
+local AUTOPLAY_NAME = "Nafarel16"
+if player.Name == AUTOPLAY_NAME then
+	local PathfindingService = game:GetService("PathfindingService")
+
+	local function autoWalkToTable()
+		local char = player.Character
+		if not char then return end
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		local rootPart = char:FindFirstChild("HumanoidRootPart")
+		if not hum or not rootPart then return end
+
+		-- Find nearest available seat at a 2-player table
+		local bestSeat = nil
+		local bestDist = math.huge
+		for _, obj in pairs(workspace:GetDescendants()) do
+			if obj:IsA("Seat") and not obj.Occupant then
+				-- Check if this seat is near a table with a 2P prompt
+				local seatPos = obj.Position
+				for _, prompt in pairs(workspace:GetDescendants()) do
+					if prompt:IsA("ProximityPrompt") and prompt.Name == "SambungKataPrompt"
+						and prompt.ObjectText:find("2") and prompt.Enabled then
+						local promptParent = prompt.Parent
+						if promptParent and promptParent:IsA("BasePart") then
+							local dist = (seatPos - promptParent.Position).Magnitude
+							if dist < 15 then -- seat is near this table
+								local playerDist = (seatPos - rootPart.Position).Magnitude
+								if playerDist < bestDist then
+									bestDist = playerDist
+									bestSeat = obj
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+
+		if not bestSeat then
+			print("[Autoplay] No available 2P seat found, retrying in 3s...")
+			task.delay(3, autoWalkToTable)
+			return
+		end
+
+		print("[Autoplay] Walking to seat at " .. tostring(bestSeat.Position))
+
+		-- Use pathfinding to walk to the seat
+		local path = PathfindingService:CreatePath({
+			AgentRadius = 2,
+			AgentHeight = 5,
+			AgentCanJump = true,
+		})
+		local ok, err = pcall(function()
+			path:ComputeAsync(rootPart.Position, bestSeat.Position)
+		end)
+		if ok and path.Status == Enum.PathStatus.Success then
+			local waypoints = path:GetWaypoints()
+			for _, wp in ipairs(waypoints) do
+				hum:MoveTo(wp.Position)
+				if wp.Action == Enum.PathWaypointAction.Jump then
+					hum.Jump = true
+				end
+				hum.MoveToFinished:Wait()
+				if not char.Parent then return end -- character died/left
+			end
+		else
+			-- Fallback: direct walk
+			hum:MoveTo(bestSeat.Position)
+			hum.MoveToFinished:Wait()
+		end
+
+		-- Request server to seat us
+		task.wait(0.3)
+		local AutoSeat = ReplicatedStorage:WaitForChild("AutoSeat", 5)
+		if bestSeat and not bestSeat.Occupant and hum and char.Parent and AutoSeat then
+			AutoSeat:FireServer(bestSeat)
+			print("[Autoplay] Requested seat!")
+		else
+			print("[Autoplay] Seat taken or character gone, retrying...")
+			task.delay(2, autoWalkToTable)
+		end
+	end
+
+	-- Wait for entrance screen to finish, then auto-walk
+	local function startAutoWalk()
+		task.wait(3)
+		local char = player.Character
+		if char then
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			if hum and hum.WalkSpeed > 0 then
+				autoWalkToTable()
+			else
+				-- Still frozen (entrance screen), wait more
+				task.wait(4)
+				autoWalkToTable()
+			end
+		end
+	end
+
+	task.spawn(startAutoWalk)
+
+	-- Also auto-walk on respawn
+	player.CharacterAdded:Connect(function(char)
+		task.wait(2)
+		autoWalkToTable()
+	end)
+end
 
 print("Sambung Kata UI loaded! PC=keyboard, Mobile=custom on-screen keyboard")
