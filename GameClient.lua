@@ -17,25 +17,30 @@ local GameUpdate  = ReplicatedStorage:WaitForChild("GameUpdate")
 local TimerUpdate = ReplicatedStorage:WaitForChild("TimerUpdate")
 local TypingUpdate = ReplicatedStorage:WaitForChild("TypingUpdate", 10)
 
--- ============ COLORS ============
+-- ============ COLORS (Royal Castle Theme) ============
 local C = {
-	white      = Color3.fromRGB(255,255,255),
-	darkText   = Color3.fromRGB(50,50,50),
-	medText    = Color3.fromRGB(100,100,100),
-	lightText  = Color3.fromRGB(170,170,170),
-	tileBg     = Color3.fromRGB(240,240,240),
-	tileText   = Color3.fromRGB(30,30,30),
-	red        = Color3.fromRGB(220,60,60),
-	heartRed   = Color3.fromRGB(220,50,60),
-	green      = Color3.fromRGB(60,190,80),
-	gold       = Color3.fromRGB(255,200,50),
-	inputBorder= Color3.fromRGB(210,210,210),
-	overlay    = Color3.fromRGB(0,0,0),
-	shadow     = Color3.fromRGB(0,0,0),
-	keyBg      = Color3.fromRGB(255,255,255),
-	keyPress   = Color3.fromRGB(200,200,200),
-	keyboardBg = Color3.fromRGB(180,180,190),
-	previewBg  = Color3.fromRGB(210,210,218),
+	white      = Color3.fromRGB(240,230,210),  -- cream white
+	darkText   = Color3.fromRGB(30,20,5),
+	medText    = Color3.fromRGB(140,120,90),
+	lightText  = Color3.fromRGB(180,170,150),
+	tileBg     = Color3.fromRGB(45,32,75),      -- dark royal purple tile
+	tileText   = Color3.fromRGB(255,215,90),     -- gold tile text
+	red        = Color3.fromRGB(200,50,50),
+	heartRed   = Color3.fromRGB(200,45,55),
+	green      = Color3.fromRGB(218,175,62),     -- gold replaces green as primary
+	gold       = Color3.fromRGB(218,175,62),
+	goldLight  = Color3.fromRGB(255,215,90),
+	goldDark   = Color3.fromRGB(160,120,30),
+	royal      = Color3.fromRGB(22,16,42),       -- deep royal purple
+	royalLight = Color3.fromRGB(45,32,75),
+	royalAccent= Color3.fromRGB(65,48,110),
+	inputBorder= Color3.fromRGB(218,175,62),     -- gold border
+	overlay    = Color3.fromRGB(10,8,22),
+	shadow     = Color3.fromRGB(10,8,22),
+	keyBg      = Color3.fromRGB(35,25,60),       -- dark purple keys
+	keyPress   = Color3.fromRGB(55,40,90),
+	keyboardBg = Color3.fromRGB(18,14,35),
+	previewBg  = Color3.fromRGB(30,22,55),
 }
 -- ============ FONTS ============
 local F = {
@@ -238,14 +243,14 @@ local gamePanel=create("Frame",{Name="GamePanel",Size=UDim2.new(0,340*UI_SCALE,0
 	Position=UDim2.new(0.5,0,0.38,0),AnchorPoint=Vector2.new(0.5,0.5),
 	BackgroundTransparency=1,Visible=false,ZIndex=10,Parent=gui})
 
--- Row 1: Current word in bordered box
+-- Row 1: Current word in bordered box (royal)
 local wordBox=create("Frame",{Size=UDim2.new(0,180*UI_SCALE,0,32*UI_SCALE),Position=UDim2.new(0.5,0,0,4*UI_SCALE),
-	AnchorPoint=Vector2.new(0.5,0),BackgroundColor3=Color3.fromRGB(20,20,20),BackgroundTransparency=0.4,ZIndex=11,Parent=gamePanel})
+	AnchorPoint=Vector2.new(0.5,0),BackgroundColor3=C.royal,BackgroundTransparency=0.2,ZIndex=11,Parent=gamePanel})
 create("UICorner",{CornerRadius=UDim.new(0,8),Parent=wordBox})
-create("UIStroke",{Color=C.white,Thickness=2,Transparency=0.3,Parent=wordBox})
+create("UIStroke",{Color=C.gold,Thickness=2,Transparency=0.3,Parent=wordBox})
 local wordBoxLbl=create("TextLabel",{Size=UDim2.new(1,-10,1,0),Position=UDim2.new(0.5,0,0.5,0),AnchorPoint=Vector2.new(0.5,0.5),
-	BackgroundTransparency=1,Font=F.big,Text="",TextSize=20*UI_SCALE,TextColor3=C.white,
-	TextStrokeTransparency=1,ZIndex=12,Parent=wordBox})
+	BackgroundTransparency=1,Font=F.big,Text="",TextSize=20*UI_SCALE,TextColor3=C.goldLight,
+	TextStrokeColor3=C.shadow,TextStrokeTransparency=0.3,ZIndex=12,Parent=wordBox})
 
 -- Row 2: Letter tiles
 local tilesFrame=create("Frame",{Size=UDim2.new(1,-30,0,40*UI_SCALE),Position=UDim2.new(0.5,0,0,42*UI_SCALE),
@@ -266,6 +271,7 @@ local function updateLetterTiles(word)
 			Position=UDim2.new(0,startX+(i-1)*(tileSize+gap),0.5,0),AnchorPoint=Vector2.new(0,0.5),
 			BackgroundColor3=C.tileBg,ZIndex=12,Parent=tilesFrame})
 		create("UICorner",{CornerRadius=UDim.new(0,8),Parent=tile})
+		create("UIStroke",{Color=C.goldDark,Thickness=1,Transparency=0.4,Parent=tile})
 		create("TextLabel",{Size=UDim2.new(1,0,1,0),Position=UDim2.new(0.5,0,0.5,0),AnchorPoint=Vector2.new(0.5,0.5),
 			BackgroundTransparency=1,Font=F.letter,Text=letter,TextSize=math.min(22,tileSize-6),
 			TextColor3=C.tileText,TextStrokeTransparency=1,ZIndex=13,Parent=tile})
@@ -285,9 +291,9 @@ local crossIcons={}
 for i=1,MAX_CROSSES do
 	local circle=create("Frame",{Size=UDim2.new(0,CROSS_SIZE,0,CROSS_SIZE),
 		Position=UDim2.new(0,(i-1)*(CROSS_SIZE+CROSS_GAP),0.5,0),AnchorPoint=Vector2.new(0,0.5),
-		BackgroundColor3=Color3.fromRGB(50,50,55),ZIndex=12,Parent=crossesFrame})
+		BackgroundColor3=Color3.fromRGB(35,25,60),ZIndex=12,Parent=crossesFrame})
 	create("UICorner",{CornerRadius=UDim.new(1,0),Parent=circle})
-	create("UIStroke",{Color=Color3.fromRGB(20,20,25),Thickness=2,Parent=circle})
+	create("UIStroke",{Color=Color3.fromRGB(80,60,120),Thickness=2,Parent=circle})
 	local xLbl=create("TextLabel",{Size=UDim2.new(1,0,1,0),Position=UDim2.new(0.5,0,0.5,0),
 		AnchorPoint=Vector2.new(0.5,0.5),BackgroundTransparency=1,Font=F.big,
 		Text="X",TextSize=14*UI_SCALE,TextColor3=Color3.fromRGB(255,68,68),
@@ -303,12 +309,12 @@ local function updateCrosses(count)
 	currentCrosses=count
 	for i=1,MAX_CROSSES do
 		if i<=count then
-			crossIcons[i].circle.BackgroundColor3=Color3.fromRGB(50,50,55)
-			crossIcons[i].lbl.TextColor3=Color3.fromRGB(255,68,68)
+			crossIcons[i].circle.BackgroundColor3=Color3.fromRGB(35,25,60)
+			crossIcons[i].lbl.TextColor3=Color3.fromRGB(220,55,55)
 			crossIcons[i].lbl.TextTransparency=0
 		else
-			crossIcons[i].circle.BackgroundColor3=Color3.fromRGB(30,30,35)
-			crossIcons[i].lbl.TextColor3=Color3.fromRGB(60,60,60)
+			crossIcons[i].circle.BackgroundColor3=Color3.fromRGB(18,12,35)
+			crossIcons[i].lbl.TextColor3=Color3.fromRGB(50,35,70)
 			crossIcons[i].lbl.TextTransparency=0.5
 		end
 	end
@@ -319,9 +325,9 @@ local timerLbl=create("TextLabel",{Size=UDim2.new(0,120*UI_SCALE,0,30*UI_SCALE),
 	AnchorPoint=Vector2.new(0.5,0),BackgroundTransparency=1,Font=F.big,Text="",TextSize=26*UI_SCALE,
 	TextColor3=C.green,TextStrokeColor3=Color3.fromRGB(0,0,0),TextStrokeTransparency=0.3,ZIndex=11,Parent=gamePanel})
 local timerBarBg=create("Frame",{Size=UDim2.new(0.7,0,0,6*UI_SCALE),Position=UDim2.new(0.5,0,0,174*UI_SCALE),
-	AnchorPoint=Vector2.new(0.5,0),BackgroundColor3=Color3.fromRGB(40,40,45),ZIndex=11,Parent=gamePanel})
+	AnchorPoint=Vector2.new(0.5,0),BackgroundColor3=Color3.fromRGB(25,18,45),ZIndex=11,Parent=gamePanel})
 create("UICorner",{CornerRadius=UDim.new(1,0),Parent=timerBarBg})
-create("UIStroke",{Color=Color3.fromRGB(20,20,25),Thickness=1,Parent=timerBarBg})
+create("UIStroke",{Color=C.goldDark,Thickness=1,Transparency=0.5,Parent=timerBarBg})
 local timerBar=create("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.green,ZIndex=12,Parent=timerBarBg})
 create("UICorner",{CornerRadius=UDim.new(1,0),Parent=timerBar})
 local chainLbl=create("TextLabel",{Size=UDim2.new(1,-20,0,18*UI_SCALE),Position=UDim2.new(0.5,0,1,-8*UI_SCALE),
@@ -348,7 +354,7 @@ for i=1,4 do
 	local heartsLbl=create("TextLabel",{Size=UDim2.new(0,200*UI_SCALE,0,22*UI_SCALE),
 		Position=sp.pos+UDim2.new(0,0,0,(i<=2 and 24 or -24)*UI_SCALE),AnchorPoint=sp.anchor,
 		BackgroundTransparency=1,Font=F.heart,Text="",TextSize=18*UI_SCALE,
-		TextColor3=C.heartRed,TextStrokeColor3=C.shadow,TextStrokeTransparency=0.4,
+		TextColor3=C.heartRed,TextStrokeColor3=Color3.fromRGB(10,8,22),TextStrokeTransparency=0.2,
 		TextXAlignment=sp.align,Visible=false,ZIndex=10,Parent=gui})
 	playerSlots[i]={nameLbl=nameLbl,heartsLbl=heartsLbl}
 end
@@ -377,7 +383,7 @@ local function buildMobileKeyboard()
 	local function makeKey(parent, letter, sizeUdim, posUdim)
 		local kb=create("TextButton",{Size=sizeUdim,Position=posUdim,
 			AnchorPoint=Vector2.new(0,0.5),BackgroundColor3=C.keyBg,Font=F.key,
-			Text=letter,TextSize=16,TextColor3=C.darkText,
+			Text=letter,TextSize=16,TextColor3=C.goldLight,
 			AutoButtonColor=false,ZIndex=27,Parent=parent})
 		create("UICorner",{CornerRadius=UDim.new(0,4),Parent=kb})
 		kb.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch then tw(kb,{BackgroundColor3=C.keyPress},0.05) end end)
@@ -441,12 +447,12 @@ local function buildMobileKeyboard()
 		local bsBtn=create("TextButton",{
 			Size=UDim2.new(bsFrac,-GAP,1,-2),
 			Position=UDim2.new(1-bsFrac,-GAP/2,0.5,0),
-			AnchorPoint=Vector2.new(0,0.5),BackgroundColor3=Color3.fromRGB(210,55,55),Font=F.key,
+			AnchorPoint=Vector2.new(0,0.5),BackgroundColor3=Color3.fromRGB(140,35,40),Font=F.key,
 			Text="\u{232B}",TextSize=18,TextColor3=C.white,
 			AutoButtonColor=false,ZIndex=27,Parent=rowFrame})
 		create("UICorner",{CornerRadius=UDim.new(0,4),Parent=bsBtn})
-		bsBtn.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch then tw(bsBtn,{BackgroundColor3=Color3.fromRGB(170,40,40)},0.05) end end)
-		bsBtn.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch then tw(bsBtn,{BackgroundColor3=Color3.fromRGB(210,55,55)},0.12) end end)
+		bsBtn.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch then tw(bsBtn,{BackgroundColor3=Color3.fromRGB(100,25,30)},0.05) end end)
+		bsBtn.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch then tw(bsBtn,{BackgroundColor3=Color3.fromRGB(140,35,40)},0.12) end end)
 		bsBtn.MouseButton1Click:Connect(function()
 			if not inputActive or #pendingWord<=#currentPrefix then return end
 			pendingWord=pendingWord:sub(1,-2)
@@ -456,15 +462,15 @@ local function buildMobileKeyboard()
 		end)
 	end
 
-	-- Row 4: Masuk button (full width, green)
+	-- Row 4: Masuk button (full width, gold)
 	local row4Y = keysStartY + 3*(ROW_H+GAP)
 	local masukBtn=create("TextButton",{Size=UDim2.new(1,-8,0,ROW_H),
 		Position=UDim2.new(0.5,0,0,row4Y),AnchorPoint=Vector2.new(0.5,0),
-		BackgroundColor3=C.green,Font=F.status,
-		Text="Masuk",TextSize=16,TextColor3=C.white,AutoButtonColor=false,ZIndex=27,Parent=kbPanel})
+		BackgroundColor3=C.gold,Font=F.status,
+		Text="Masuk",TextSize=16,TextColor3=C.darkText,AutoButtonColor=false,ZIndex=27,Parent=kbPanel})
 	create("UICorner",{CornerRadius=UDim.new(0,4),Parent=masukBtn})
-	masukBtn.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch then tw(masukBtn,{BackgroundColor3=Color3.fromRGB(40,160,60)},0.05) end end)
-	masukBtn.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch then tw(masukBtn,{BackgroundColor3=C.green},0.12) end end)
+	masukBtn.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch then tw(masukBtn,{BackgroundColor3=C.goldDark},0.05) end end)
+	masukBtn.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch then tw(masukBtn,{BackgroundColor3=C.gold},0.12) end end)
 	masukBtn.MouseButton1Click:Connect(function()
 		if inputActive and #pendingWord>0 and doSubmit then doSubmit() end
 	end)
@@ -584,7 +590,7 @@ local function highlightTurn(pName)
 	local myTurn=pName==player.Name
 	for i,slot in ipairs(playerSlots) do
 		local isThis=activeNames[i]==pName
-		tw(slot.nameLbl,{TextColor3=isThis and C.white or C.lightText,TextSize=(isThis and 18 or 14)*UI_SCALE},0.3)
+		tw(slot.nameLbl,{TextColor3=isThis and C.goldLight or C.lightText,TextSize=(isThis and 18 or 14)*UI_SCALE},0.3)
 		tw(slot.heartsLbl,{TextTransparency=isThis and 0 or 0.5},0.3)
 	end
 end
@@ -705,7 +711,7 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 	elseif msg=="spectating" then
 		hideGameUI(); setPromptsVisible(false); showWait(data.queuePos and data.queuePos>0 and ("Menonton  \u{2022}  antrian #"..data.queuePos) or "Menonton")
 	elseif msg=="countdown" then
-		setPromptsVisible(false); hideWait(); spawnText(tostring(data.seconds),UDim2.new(0.5,0,0.4,0),C.white,100,1.2,-60,F.title); screenFlash(C.white,0.85,0.3)
+		setPromptsVisible(false); hideWait(); spawnText(tostring(data.seconds),UDim2.new(0.5,0,0.4,0),C.goldLight,100,1.2,-60,F.title); screenFlash(C.gold,0.85,0.3)
 	elseif msg=="gameStart" then
 		setPromptsVisible(false); hideWait(); resetAll()
 		local initHearts={}
@@ -715,14 +721,14 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 		updateCrosses(MAX_CROSSES)
 		showGameUI(); wordHistory={}
 		updatePlayers(initHearts, data.players)
-		spawnText("MULAI!",UDim2.new(0.5,0,0.4,0),C.white,52,2.5,-70,F.title); screenFlash(C.white,0.7,0.7)
+		spawnText("MULAI!",UDim2.new(0.5,0,0.4,0),C.goldLight,52,2.5,-70,F.title); screenFlash(C.gold,0.7,0.7)
 	elseif msg=="turn" then
 		currentTurnPlayer=data.playerName; local myTurn=data.playerName==player.Name
 		if data.lastLetter~="" then
 			currentPrefix=data.lastLetter:lower()
 		else currentPrefix="" end
 		updateCrosses(data.crosses or MAX_CROSSES)
-		startCameraZoom(data.playerName); timerBar.Size=UDim2.new(1,0,1,0); timerBar.BackgroundColor3=C.green
+		startCameraZoom(data.playerName); timerBar.Size=UDim2.new(1,0,1,0); timerBar.BackgroundColor3=C.gold
 		if myTurn then
 			setInputActive(true)
 		else
@@ -733,7 +739,7 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 		updateCrosses(data.crossesLeft)
 		spawnText(data.reason or "",UDim2.new(0.5,0,0.55,0),C.red,14,2.0,-60,F.status)
 		screenFlash(C.red,0.92,0.15)
-		for _,tile in pairs(letterTiles) do tw(tile,{BackgroundColor3=Color3.fromRGB(255,200,200)},0.1); task.delay(0.4,function() tw(tile,{BackgroundColor3=C.tileBg},0.3) end) end
+		for _,tile in pairs(letterTiles) do tw(tile,{BackgroundColor3=Color3.fromRGB(120,30,40)},0.1); task.delay(0.4,function() tw(tile,{BackgroundColor3=C.tileBg},0.3) end) end
 		-- Clear input so player can retype (stays on their turn), keep prefix
 		pendingWord=currentPrefix
 		updateLetterTiles(pendingWord)
@@ -741,7 +747,7 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 	elseif msg=="wordAccepted" then
 		wordHistory[#wordHistory+1]=data.word; updateChain(); updateLetterTiles(data.word)
 		spawnText(data.word:upper(),UDim2.new(0.5,0,0.65,0),C.green,28,1.5,-120,F.big); screenFlash(C.green,0.9,0.2)
-		for _,tile in pairs(letterTiles) do tw(tile,{BackgroundColor3=Color3.fromRGB(200,255,200)},0.1); task.delay(0.3,function() tw(tile,{BackgroundColor3=C.tileBg},0.3) end) end
+		for _,tile in pairs(letterTiles) do tw(tile,{BackgroundColor3=Color3.fromRGB(60,120,45)},0.1); task.delay(0.3,function() tw(tile,{BackgroundColor3=C.tileBg},0.3) end) end
 	elseif msg=="heartLost" then
 		local slotIdx=1
 		for i,n in ipairs(activeNames) do if n==data.playerName then slotIdx=i; break end end
@@ -788,7 +794,7 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 	elseif msg=="leftSeat" then stopCameraZoom(); hideWait(); resetAll(); setPromptsVisible(true)
 	elseif msg=="error" then
 		spawnText(data.message,UDim2.new(0.5,0,0.6,0),C.red,16,2.5,-50,F.status); screenFlash(C.red,0.9,0.2)
-		for _,tile in pairs(letterTiles) do tw(tile,{BackgroundColor3=Color3.fromRGB(255,200,200)},0.1); task.delay(0.4,function() tw(tile,{BackgroundColor3=C.tileBg},0.3) end) end
+		for _,tile in pairs(letterTiles) do tw(tile,{BackgroundColor3=Color3.fromRGB(120,30,40)},0.1); task.delay(0.4,function() tw(tile,{BackgroundColor3=C.tileBg},0.3) end) end
 	end
 end)
 -- ============ TIMER ============
@@ -811,7 +817,7 @@ TimerUpdate.OnClientEvent:Connect(function(sec)
 			end
 		end
 	else
-		tw(timerLbl,{TextColor3=C.green},0.15); tw(timerBar,{BackgroundColor3=C.green},0.15)
+		tw(timerLbl,{TextColor3=C.gold},0.15); tw(timerBar,{BackgroundColor3=C.gold},0.15)
 		if redVignette.Visible then tw(redVignette,{ImageTransparency=1},0.3); task.delay(0.3,function() redVignette.Visible=false end) end
 	end
 end)
