@@ -348,21 +348,25 @@ local playerSlotPositions = {
 	{pos=UDim2.new(0.03,0,0.88,0), anchor=Vector2.new(0,1), align=Enum.TextXAlignment.Left},
 	{pos=UDim2.new(0.97,0,0.88,0), anchor=Vector2.new(1,1), align=Enum.TextXAlignment.Right},
 }
-local playerSlots = {} -- {nameLbl, heartsLbl}
+local playerSlots = {} -- {nameLbl, heartsLbl, streakLbl}
 for i=1,4 do
 	local sp=playerSlotPositions[i]
-	local yOff= (i<=2) and 0 or -24*UI_SCALE
 	local nameLbl=create("TextLabel",{Size=UDim2.new(0,200*UI_SCALE,0,22*UI_SCALE),
 		Position=sp.pos,AnchorPoint=sp.anchor,
 		BackgroundTransparency=1,Font=F.name,Text="",TextSize=16*UI_SCALE,
 		TextColor3=C.white,TextStrokeColor3=C.shadow,TextStrokeTransparency=0.3,
 		TextXAlignment=sp.align,Visible=false,ZIndex=10,Parent=gui})
+	local streakLbl=create("TextLabel",{Size=UDim2.new(0,200*UI_SCALE,0,16*UI_SCALE),
+		Position=sp.pos+UDim2.new(0,0,0,(i<=2 and 22 or -22)*UI_SCALE),AnchorPoint=sp.anchor,
+		BackgroundTransparency=1,Font=F.name,Text="",TextSize=12*UI_SCALE,
+		TextColor3=Color3.fromRGB(255,160,40),TextStrokeColor3=C.shadow,TextStrokeTransparency=0.3,
+		TextXAlignment=sp.align,Visible=false,ZIndex=10,Parent=gui})
 	local heartsLbl=create("TextLabel",{Size=UDim2.new(0,200*UI_SCALE,0,22*UI_SCALE),
-		Position=sp.pos+UDim2.new(0,0,0,(i<=2 and 24 or -24)*UI_SCALE),AnchorPoint=sp.anchor,
+		Position=sp.pos+UDim2.new(0,0,0,(i<=2 and 38 or -38)*UI_SCALE),AnchorPoint=sp.anchor,
 		BackgroundTransparency=1,Font=F.heart,Text="",TextSize=18*UI_SCALE,
 		TextColor3=C.heartRed,TextStrokeColor3=Color3.fromRGB(10,8,22),TextStrokeTransparency=0.2,
 		TextXAlignment=sp.align,Visible=false,ZIndex=10,Parent=gui})
-	playerSlots[i]={nameLbl=nameLbl,heartsLbl=heartsLbl}
+	playerSlots[i]={nameLbl=nameLbl,heartsLbl=heartsLbl,streakLbl=streakLbl}
 end
 
 -- ============ MOBILE KEYBOARD ============
@@ -528,17 +532,19 @@ end
 if AutoplayWord then
 	AutoplayWord.OnClientEvent:Connect(function(word, noSubmit)
 		if not inputActive then return end
-		-- Type each letter after the prefix, one by one (slow, human-like)
 		local startIdx = #currentPrefix + 1
+		-- Typing speed: slower when going to timeout, normal when answering
+		local baseDelay = noSubmit and 0.7 or 0.35
+		local randDelay = noSubmit and 0.5 or 0.25
 		for i = startIdx, #word do
 			if not inputActive then return end
 			local letter = word:sub(i, i):lower()
 			pendingWord = pendingWord .. letter
 			updateLetterTiles(pendingWord)
 			if TypingUpdate then TypingUpdate:FireServer(pendingWord) end
-			task.wait(0.4 + math.random() * 0.35) -- slow typing (0.4-0.75s per letter)
+			task.wait(baseDelay + math.random() * randDelay)
 		end
-		-- If noSubmit, just stop (will timeout naturally)
+		-- If noSubmit, just stop typing — timer runs out naturally
 		if noSubmit then return end
 		-- Small pause then submit
 		task.wait(0.5 + math.random() * 0.5)
@@ -579,6 +585,7 @@ local function heartsStr(count, max)
 	for i=1,max do s=s..(i<=count and "\u{2764}" or "\u{25CB}"); if i<max then s=s.."  " end end
 	return s
 end
+local currentWinStreaks = {} -- playerName -> streak
 local function showGameUI()
 	gameActive=true; gamePanel.Visible=true
 	for i,slot in ipairs(playerSlots) do
@@ -587,6 +594,16 @@ local function showGameUI()
 			slot.nameLbl.TextTransparency=1; slot.heartsLbl.TextTransparency=1
 			tw(slot.nameLbl,{TextTransparency=0},0.5)
 			tw(slot.heartsLbl,{TextTransparency=0},0.6)
+			-- Show streak if > 0
+			local streak = currentWinStreaks[activeNames[i]] or 0
+			if streak > 0 then
+				slot.streakLbl.Text = "\u{1F525}" .. streak
+				slot.streakLbl.Visible = true
+				slot.streakLbl.TextTransparency = 1
+				tw(slot.streakLbl, {TextTransparency = 0}, 0.5)
+			else
+				slot.streakLbl.Visible = false
+			end
 		end
 	end
 end
@@ -595,7 +612,7 @@ local function hideGameUI()
 	gamePanel.Visible=false
 	if IS_MOBILE then hideMobileKeyboard() end
 	for _,slot in ipairs(playerSlots) do
-		slot.nameLbl.Visible=false; slot.heartsLbl.Visible=false
+		slot.nameLbl.Visible=false; slot.heartsLbl.Visible=false; slot.streakLbl.Visible=false
 	end
 	redVignette.Visible=false; redVignette.ImageTransparency=1
 end
@@ -643,8 +660,8 @@ local function resetAll()
 	wordBoxLbl.Text=""
 	updateCrosses(MAX_CROSSES)
 	for _,slot in ipairs(playerSlots) do
-		slot.nameLbl.Text=""; slot.heartsLbl.Text=""
-		slot.nameLbl.Visible=false; slot.heartsLbl.Visible=false
+		slot.nameLbl.Text=""; slot.heartsLbl.Text=""; slot.streakLbl.Text=""
+		slot.nameLbl.Visible=false; slot.heartsLbl.Visible=false; slot.streakLbl.Visible=false
 	end
 	updateLetterTiles("")
 end
@@ -755,6 +772,7 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 		local initHearts={}
 		for _,n in ipairs(data.players) do initHearts[n]=data.maxHearts or 3 end
 		activeNames=data.players
+		currentWinStreaks = data.winStreaks or {}
 		MAX_CROSSES=data.maxCrosses or 5
 		updateCrosses(MAX_CROSSES)
 		showGameUI(); wordHistory={}

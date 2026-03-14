@@ -131,66 +131,43 @@ local function findAutoplayWord(prefix, usedWords)
 end
 
 -- Decide what the bot does this turn
--- Returns: "answer", "misspell", or "timeout"
+-- Returns: "answer" or "timeout"
+-- Bot loses by being slow and running out of time, not by typing wrong things
 local function decideBotAction(plr)
 	if not BOT_TURN_COUNT[plr] then BOT_TURN_COUNT[plr] = 0 end
 	if not BOT_CONSEC_FAIL[plr] then BOT_CONSEC_FAIL[plr] = 0 end
-	if not BOT_GAMES_PLAYED[plr] then BOT_GAMES_PLAYED[plr] = 0 end
-	if not BOT_GAMES_WON[plr] then BOT_GAMES_WON[plr] = 0 end
 	BOT_TURN_COUNT[plr] += 1
 	local turn = BOT_TURN_COUNT[plr]
 	local streak = BOT_CONSEC_FAIL[plr]
 
-	-- Never fail more than 2 in a row — forced correct answer to break the pattern
+	-- Never timeout more than 2 in a row
 	if streak >= 2 then
 		BOT_CONSEC_FAIL[plr] = 0
 		return "answer"
 	end
 
-	-- Every ~4th game, let the bot win (play correctly the whole game)
-	local gamesPlayed = BOT_GAMES_PLAYED[plr]
-	local gamesWon = BOT_GAMES_WON[plr]
-	if gamesPlayed > 0 and gamesWon == 0 then
-		-- Haven't won yet, force a win game
-		BOT_CONSEC_FAIL[plr] = 0
-		return "answer"
-	end
-	if gamesPlayed >= 3 and (gamesPlayed - gamesWon) >= 3 then
-		-- Lost 3+ in a row across games, win this one
-		BOT_CONSEC_FAIL[plr] = 0
-		return "answer"
-	end
-
-	-- First 2 turns: always answer correctly
+	-- First 2 turns: always answer (build trust)
 	if turn <= 2 then
 		BOT_CONSEC_FAIL[plr] = 0
 		return "answer"
 	end
 
+	-- After that: increasingly likely to timeout
 	local roll = math.random()
-
-	-- Turns 3-5: mix of correct and mistakes
 	if turn <= 5 then
-		-- 45% answer, 25% misspell, 30% timeout
+		-- 45% answer, 55% timeout
 		if roll < 0.45 then
 			BOT_CONSEC_FAIL[plr] = 0
 			return "answer"
-		elseif roll < 0.70 then
-			BOT_CONSEC_FAIL[plr] += 1
-			return "misspell"
 		else
 			BOT_CONSEC_FAIL[plr] += 1
 			return "timeout"
 		end
 	else
-		-- Turn 6+: more likely to fail but still answers sometimes
-		-- 30% answer, 30% misspell, 40% timeout
+		-- 30% answer, 70% timeout
 		if roll < 0.30 then
 			BOT_CONSEC_FAIL[plr] = 0
 			return "answer"
-		elseif roll < 0.60 then
-			BOT_CONSEC_FAIL[plr] += 1
-			return "misspell"
 		else
 			BOT_CONSEC_FAIL[plr] += 1
 			return "timeout"
@@ -198,14 +175,8 @@ local function decideBotAction(plr)
 	end
 end
 
--- Corrupt a word by swapping one random letter (makes it invalid)
-local function misspellWord(word)
-	if #word < 3 then return word end
-	local pos = math.random(2, #word) -- don't change first letter (prefix)
-	local chars = "abcdefghijklmnopqrstuvwxyz"
-	local newChar = chars:sub(math.random(1, #chars), math.random(1, #chars))
-	return word:sub(1, pos - 1) .. newChar .. word:sub(pos + 1)
-end
+-- ============ WINSTREAK ============
+local playerWinStreaks = {} -- playerName -> streak count
 
 -- ============ WORD VALIDATION ============
 
@@ -293,9 +264,65 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 
 	setupPrompt()
 
+	-- Floating player count BillboardGui above the table
+	local function setupBillboard()
+		if not model then return end
+		local billParent = nil
+		if model:IsA("BasePart") then
+			billParent = model
+		elseif model:IsA("Model") then
+			billParent = model.PrimaryPart
+			if not billParent then
+				for _, child in pairs(model:GetDescendants()) do
+					if child:IsA("BasePart") then billParent = child; break end
+				end
+			end
+		end
+		if not billParent then return end
+
+		local bb = Instance.new("BillboardGui")
+		bb.Name = "SK_PlayerCount"
+		bb.Size = UDim2.new(0, 80, 0, 36)
+		bb.StudsOffset = Vector3.new(0, 5, 0)
+		bb.AlwaysOnTop = true
+		bb.MaxDistance = 40
+		bb.Parent = billParent
+
+		local countLbl = Instance.new("TextLabel")
+		countLbl.Name = "CountLbl"
+		countLbl.Size = UDim2.new(1, 0, 1, 0)
+		countLbl.BackgroundTransparency = 1
+		countLbl.Font = Enum.Font.GothamBold
+		countLbl.TextSize = 20
+		countLbl.TextColor3 = Color3.fromRGB(255, 215, 90)
+		countLbl.TextStrokeColor3 = Color3.fromRGB(10, 8, 22)
+		countLbl.TextStrokeTransparency = 0.2
+		countLbl.Text = "0/" .. maxPlayers
+		countLbl.Parent = bb
+
+		game_inst.billboard = bb
+		game_inst.countLbl = countLbl
+	end
+
+	setupBillboard()
+
 	function game_inst:updatePlayerCount()
 		if self.prompt then
 			self.prompt.Enabled = #self.seatedPlayers < self.maxPlayers and not self.gameRunning
+		end
+		if self.countLbl then
+			local count = #self.seatedPlayers
+			self.countLbl.Text = count .. "/" .. self.maxPlayers
+			if count == 0 then
+				-- Gray: empty
+				self.countLbl.TextColor3 = Color3.fromRGB(150, 150, 150)
+			elseif count >= self.minPlayers then
+				-- Green: enough to start
+				self.countLbl.TextColor3 = Color3.fromRGB(80, 200, 80)
+			else
+				-- Yellow: has players but not enough
+				self.countLbl.TextColor3 = Color3.fromRGB(255, 215, 60)
+			end
 		end
 	end
 
@@ -324,6 +351,14 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 	function game_inst:getHeartsTable()
 		local t = {}
 		for _, p in pairs(self.activePlayers) do t[p.Name] = self.playerHearts[p] or 0 end
+		return t
+	end
+
+	function game_inst:getWinStreaks()
+		local t = {}
+		for _, p in pairs(self.activePlayers) do
+			t[p.Name] = playerWinStreaks[p.Name] or 0
+		end
 		return t
 	end
 
@@ -464,13 +499,16 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 		if #self.activePlayers <= 1 then
 			local winnerName = #self.activePlayers == 1 and self.activePlayers[1].Name or nil
 			if winnerName then
-				self:setJumpEnabled(self.activePlayers[1], true)
-				self:broadcast("winner", {playerName = winnerName})
-				-- Track bot wins
-				local winnerPlr = self.activePlayers[1]
-				if AUTOPLAY_NAMES[winnerPlr.Name] then
-					BOT_GAMES_WON[winnerPlr] = (BOT_GAMES_WON[winnerPlr] or 0) + 1
+				-- Update winstreaks
+				playerWinStreaks[winnerName] = (playerWinStreaks[winnerName] or 0) + 1
+				-- Reset losers' streaks
+				for _, name in ipairs(self.gameParticipants or {}) do
+					if name ~= winnerName then
+						playerWinStreaks[name] = 0
+					end
 				end
+				self:setJumpEnabled(self.activePlayers[1], true)
+				self:broadcast("winner", {playerName = winnerName, winStreak = playerWinStreaks[winnerName]})
 			else
 				self:broadcast("noWinner", {})
 			end
@@ -521,26 +559,17 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 			local word = findAutoplayWord(lastLetter, self.usedWords)
 
 			if action == "timeout" or not word then
-				-- Bot "thinks" but never submits — runs out of time naturally
+				-- Bot starts typing a real word slowly but runs out of time
 				print("[Autoplay] " .. plr.Name .. " will timeout this turn")
-				-- Type a few letters slowly to look like they're trying, then stop
 				if word then
-					local partial = word:sub(1, math.min(#word, #lastLetter + math.random(1, 3)))
-					task.delay(math.random(4, 8), function()
+					-- Type most of the word but start too late to finish
+					local delay = math.random(6, 10) -- start very late
+					task.delay(delay, function()
 						if plr and plr.Parent then
-							AutoplayWord:FireClient(plr, partial, true) -- partial=true, don't submit
+							AutoplayWord:FireClient(plr, word, true) -- types but won't submit
 						end
 					end)
 				end
-			elseif action == "misspell" then
-				-- Bot types a misspelled word (costs a cross, wastes time)
-				local bad = misspellWord(word)
-				print("[Autoplay] " .. plr.Name .. " will misspell: " .. word .. " -> " .. bad)
-				task.delay(math.random(3, 6), function()
-					if plr and plr.Parent then
-						AutoplayWord:FireClient(plr, bad, false)
-					end
-				end)
 			else
 				-- Bot answers correctly but types slowly
 				print("[Autoplay] " .. plr.Name .. " will answer: " .. word)
@@ -597,6 +626,11 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 		self.usedWords = {}
 		self.lastLetterHistory = {}
 		self.gameRunning = true
+		-- Store participant names for winstreak tracking
+		self.gameParticipants = {}
+		for _, p in ipairs(self.activePlayers) do
+			table.insert(self.gameParticipants, p.Name)
+		end
 		-- Pick a random starting word from the dictionary
 		self.currentWord = ""
 		if dictionaryLoaded then
@@ -624,6 +658,7 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 			maxHearts = MAX_HEARTS,
 			maxCrosses = MAX_CROSSES,
 			startWord = self.currentWord,
+			winStreaks = self:getWinStreaks(),
 		})
 		task.wait(2)
 		self:startTurn()
