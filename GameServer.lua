@@ -4,6 +4,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
+local DataStoreService = game:GetService("DataStoreService")
+
+local winStreakStore = DataStoreService:GetDataStore("SambungKataWinStreaks")
 
 local SendWord = ReplicatedStorage:WaitForChild("SendWord")
 local GameUpdate = ReplicatedStorage:WaitForChild("GameUpdate")
@@ -178,6 +181,24 @@ end
 -- ============ WINSTREAK ============
 local playerWinStreaks = {} -- playerName -> streak count
 
+local function loadWinStreak(plr)
+	local ok, val = pcall(function()
+		return winStreakStore:GetAsync("streak_" .. plr.UserId)
+	end)
+	if ok and val then
+		playerWinStreaks[plr.Name] = val
+	else
+		playerWinStreaks[plr.Name] = 0
+	end
+end
+
+local function saveWinStreak(plr)
+	local streak = playerWinStreaks[plr.Name] or 0
+	pcall(function()
+		winStreakStore:SetAsync("streak_" .. plr.UserId, streak)
+	end)
+end
+
 -- ============ WORD VALIDATION ============
 
 local function isValidWord(word)
@@ -189,6 +210,53 @@ local function isValidWord(word)
 		end
 	end
 	return true, nil
+end
+
+-- ============ WINSTREAK BILLBOARD ============
+-- Server-side: visible to all players
+
+local function updateStreakBillboard(plr)
+	local streak = playerWinStreaks[plr.Name] or 0
+	local char = plr.Character
+	if not char then return end
+	local head = char:FindFirstChild("Head")
+	if not head then return end
+
+	local bb = head:FindFirstChild("SK_WinStreak")
+	if streak > 0 then
+		if not bb then
+			bb = Instance.new("BillboardGui")
+			bb.Name = "SK_WinStreak"
+			bb.Size = UDim2.new(0, 100, 0, 20)
+			bb.StudsOffset = Vector3.new(0, 1.8, 0)
+			bb.AlwaysOnTop = false
+			bb.MaxDistance = 30
+			bb.Parent = head
+
+			local lbl = Instance.new("TextLabel")
+			lbl.Name = "StreakLbl"
+			lbl.Size = UDim2.new(1, 0, 1, 0)
+			lbl.BackgroundTransparency = 1
+			lbl.Font = Enum.Font.GothamBold
+			lbl.TextSize = 14
+			lbl.TextColor3 = Color3.fromRGB(255, 160, 40)
+			lbl.TextStrokeColor3 = Color3.fromRGB(5, 10, 25)
+			lbl.TextStrokeTransparency = 0.2
+			lbl.Parent = bb
+		end
+		local lbl = bb:FindFirstChild("StreakLbl")
+		if lbl then
+			lbl.Text = "\u{1F525}" .. streak
+		end
+	else
+		if bb then bb:Destroy() end
+	end
+end
+
+local function updateAllStreakBillboards()
+	for _, plr in pairs(Players:GetPlayers()) do
+		updateStreakBillboard(plr)
+	end
 end
 
 -- ============ GAME INSTANCE ============
@@ -294,8 +362,8 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 		countLbl.BackgroundTransparency = 1
 		countLbl.Font = Enum.Font.GothamBold
 		countLbl.TextSize = 20
-		countLbl.TextColor3 = Color3.fromRGB(255, 215, 90)
-		countLbl.TextStrokeColor3 = Color3.fromRGB(10, 8, 22)
+		countLbl.TextColor3 = Color3.fromRGB(235, 240, 250)
+		countLbl.TextStrokeColor3 = Color3.fromRGB(5, 10, 25)
 		countLbl.TextStrokeTransparency = 0.2
 		countLbl.Text = "0/" .. maxPlayers
 		countLbl.Parent = bb
@@ -509,6 +577,12 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 				end
 				self:setJumpEnabled(self.activePlayers[1], true)
 				self:broadcast("winner", {playerName = winnerName, winStreak = playerWinStreaks[winnerName]})
+				updateAllStreakBillboards()
+				-- Save all participants' streaks
+				for _, name in ipairs(self.gameParticipants or {}) do
+					local p = Players:FindFirstChild(name)
+					if p then task.spawn(function() saveWinStreak(p) end) end
+				end
 			else
 				self:broadcast("noWinner", {})
 			end
@@ -1042,10 +1116,20 @@ end)
 Players.PlayerRemoving:Connect(function(plr)
 	local inst = playerToInstance[plr]
 	if inst then inst:onPlayerStood(plr) end
+	-- Save winstreak to DataStore
+	saveWinStreak(plr)
 end)
 
 Players.PlayerAdded:Connect(function(plr)
+	-- Load winstreak from DataStore
+	task.spawn(function()
+		loadWinStreak(plr)
+	end)
 	plr.CharacterAdded:Connect(function(char)
+		-- Restore winstreak billboard after respawn
+		task.delay(1, function()
+			if plr and plr.Parent then updateStreakBillboard(plr) end
+		end)
 		local hum = char:WaitForChild("Humanoid")
 		hum.Died:Connect(function()
 			task.wait(0.2)
@@ -1056,6 +1140,13 @@ Players.PlayerAdded:Connect(function(plr)
 			end
 		end)
 	end)
+end)
+
+-- Save all winstreaks on server shutdown
+game:BindToClose(function()
+	for _, plr in pairs(Players:GetPlayers()) do
+		saveWinStreak(plr)
+	end
 end)
 
 -- Start!

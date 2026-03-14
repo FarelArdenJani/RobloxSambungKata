@@ -18,30 +18,30 @@ local TimerUpdate = ReplicatedStorage:WaitForChild("TimerUpdate")
 local TypingUpdate = ReplicatedStorage:WaitForChild("TypingUpdate", 10)
 local AutoplayWord = ReplicatedStorage:WaitForChild("AutoplayWord", 10)
 
--- ============ COLORS (Royal Castle Theme) ============
+-- ============ COLORS (Red & Blue Theme) ============
 local C = {
-	white      = Color3.fromRGB(240,230,210),  -- cream white
-	darkText   = Color3.fromRGB(30,20,5),
-	medText    = Color3.fromRGB(140,120,90),
-	lightText  = Color3.fromRGB(180,170,150),
-	tileBg     = Color3.fromRGB(45,32,75),      -- dark royal purple tile
-	tileText   = Color3.fromRGB(255,215,90),     -- gold tile text
-	red        = Color3.fromRGB(200,50,50),
-	heartRed   = Color3.fromRGB(200,45,55),
-	green      = Color3.fromRGB(218,175,62),     -- gold replaces green as primary
-	gold       = Color3.fromRGB(218,175,62),
-	goldLight  = Color3.fromRGB(255,215,90),
-	goldDark   = Color3.fromRGB(160,120,30),
-	royal      = Color3.fromRGB(22,16,42),       -- deep royal purple
-	royalLight = Color3.fromRGB(45,32,75),
-	royalAccent= Color3.fromRGB(65,48,110),
-	inputBorder= Color3.fromRGB(218,175,62),     -- gold border
-	overlay    = Color3.fromRGB(10,8,22),
-	shadow     = Color3.fromRGB(10,8,22),
-	keyBg      = Color3.fromRGB(35,25,60),       -- dark purple keys
-	keyPress   = Color3.fromRGB(55,40,90),
-	keyboardBg = Color3.fromRGB(18,14,35),
-	previewBg  = Color3.fromRGB(30,22,55),
+	white      = Color3.fromRGB(235,240,250),  -- cool white
+	darkText   = Color3.fromRGB(10,15,30),
+	medText    = Color3.fromRGB(120,140,170),
+	lightText  = Color3.fromRGB(170,185,210),
+	tileBg     = Color3.fromRGB(20,35,70),      -- deep blue tile
+	tileText   = Color3.fromRGB(255,255,255),   -- white tile text
+	red        = Color3.fromRGB(220,45,55),
+	heartRed   = Color3.fromRGB(220,45,55),
+	green      = Color3.fromRGB(60,180,90),     -- actual green for success
+	gold       = Color3.fromRGB(220,45,55),     -- red as primary accent
+	goldLight  = Color3.fromRGB(255,80,90),     -- bright red
+	goldDark   = Color3.fromRGB(160,30,40),     -- dark red
+	royal      = Color3.fromRGB(10,18,40),      -- deep navy
+	royalLight = Color3.fromRGB(20,35,70),
+	royalAccent= Color3.fromRGB(35,55,100),
+	inputBorder= Color3.fromRGB(220,45,55),     -- red border
+	overlay    = Color3.fromRGB(5,10,25),
+	shadow     = Color3.fromRGB(5,10,25),
+	keyBg      = Color3.fromRGB(18,30,60),      -- dark blue keys
+	keyPress   = Color3.fromRGB(30,50,90),
+	keyboardBg = Color3.fromRGB(8,14,32),
+	previewBg  = Color3.fromRGB(15,25,55),
 }
 -- ============ FONTS ============
 local F = {
@@ -292,9 +292,9 @@ local crossIcons={}
 for i=1,MAX_CROSSES do
 	local circle=create("Frame",{Size=UDim2.new(0,CROSS_SIZE,0,CROSS_SIZE),
 		Position=UDim2.new(0,(i-1)*(CROSS_SIZE+CROSS_GAP),0.5,0),AnchorPoint=Vector2.new(0,0.5),
-		BackgroundColor3=Color3.fromRGB(35,25,60),ZIndex=12,Parent=crossesFrame})
+		BackgroundColor3=Color3.fromRGB(18,30,60),ZIndex=12,Parent=crossesFrame})
 	create("UICorner",{CornerRadius=UDim.new(1,0),Parent=circle})
-	create("UIStroke",{Color=Color3.fromRGB(80,60,120),Thickness=2,Parent=circle})
+	create("UIStroke",{Color=Color3.fromRGB(40,65,120),Thickness=2,Parent=circle})
 	local xLbl=create("TextLabel",{Size=UDim2.new(1,0,1,0),Position=UDim2.new(0.5,0,0.5,0),
 		AnchorPoint=Vector2.new(0.5,0.5),BackgroundTransparency=1,Font=F.big,
 		Text="X",TextSize=14*UI_SCALE,TextColor3=Color3.fromRGB(255,68,68),
@@ -310,12 +310,12 @@ local function updateCrosses(count)
 	currentCrosses=count
 	for i=1,MAX_CROSSES do
 		if i<=count then
-			crossIcons[i].circle.BackgroundColor3=Color3.fromRGB(35,25,60)
+			crossIcons[i].circle.BackgroundColor3=Color3.fromRGB(18,30,60)
 			crossIcons[i].lbl.TextColor3=Color3.fromRGB(220,55,55)
 			crossIcons[i].lbl.TextTransparency=0
 		else
-			crossIcons[i].circle.BackgroundColor3=Color3.fromRGB(18,12,35)
-			crossIcons[i].lbl.TextColor3=Color3.fromRGB(50,35,70)
+			crossIcons[i].circle.BackgroundColor3=Color3.fromRGB(8,15,35)
+			crossIcons[i].lbl.TextColor3=Color3.fromRGB(25,40,70)
 			crossIcons[i].lbl.TextTransparency=0.5
 		end
 	end
@@ -326,7 +326,7 @@ local timerLbl=create("TextLabel",{Size=UDim2.new(0,120*UI_SCALE,0,30*UI_SCALE),
 	AnchorPoint=Vector2.new(0.5,0),BackgroundTransparency=1,Font=F.big,Text="",TextSize=26*UI_SCALE,
 	TextColor3=C.green,TextStrokeColor3=Color3.fromRGB(0,0,0),TextStrokeTransparency=0.3,ZIndex=11,Parent=gamePanel})
 local timerBarBg=create("Frame",{Size=UDim2.new(0.7,0,0,6*UI_SCALE),Position=UDim2.new(0.5,0,0,174*UI_SCALE),
-	AnchorPoint=Vector2.new(0.5,0),BackgroundColor3=Color3.fromRGB(25,18,45),ZIndex=11,Parent=gamePanel})
+	AnchorPoint=Vector2.new(0.5,0),BackgroundColor3=Color3.fromRGB(12,22,50),ZIndex=11,Parent=gamePanel})
 create("UICorner",{CornerRadius=UDim.new(1,0),Parent=timerBarBg})
 create("UIStroke",{Color=C.goldDark,Thickness=1,Transparency=0.5,Parent=timerBarBg})
 local timerBar=create("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.green,ZIndex=12,Parent=timerBarBg})
@@ -359,7 +359,7 @@ for i=1,4 do
 	local heartsLbl=create("TextLabel",{Size=UDim2.new(0,200*UI_SCALE,0,22*UI_SCALE),
 		Position=sp.pos+UDim2.new(0,0,0,(i<=2 and 24 or -24)*UI_SCALE),AnchorPoint=sp.anchor,
 		BackgroundTransparency=1,Font=F.heart,Text="",TextSize=18*UI_SCALE,
-		TextColor3=C.heartRed,TextStrokeColor3=Color3.fromRGB(10,8,22),TextStrokeTransparency=0.2,
+		TextColor3=C.heartRed,TextStrokeColor3=Color3.fromRGB(5,10,25),TextStrokeTransparency=0.2,
 		TextXAlignment=sp.align,Visible=false,ZIndex=10,Parent=gui})
 	playerSlots[i]={nameLbl=nameLbl,heartsLbl=heartsLbl}
 end
@@ -582,60 +582,6 @@ local function heartsStr(count, max)
 end
 local currentWinStreaks = {} -- playerName -> streak
 
--- Winstreak BillboardGui under player names in the 3D world
-local function updateStreakBillboards()
-	for _, plr in pairs(Players:GetPlayers()) do
-		local char = plr.Character
-		if not char then continue end
-		local head = char:FindFirstChild("Head")
-		if not head then continue end
-		local streak = currentWinStreaks[plr.Name] or 0
-
-		-- Find or create the billboard
-		local bb = head:FindFirstChild("SK_WinStreak")
-		if streak > 0 then
-			if not bb then
-				bb = Instance.new("BillboardGui")
-				bb.Name = "SK_WinStreak"
-				bb.Size = UDim2.new(0, 100, 0, 20)
-				bb.StudsOffset = Vector3.new(0, -0.5, 0) -- below the name
-				bb.AlwaysOnTop = true
-				bb.MaxDistance = 30
-				bb.Parent = head
-
-				local lbl = Instance.new("TextLabel")
-				lbl.Name = "StreakLbl"
-				lbl.Size = UDim2.new(1, 0, 1, 0)
-				lbl.BackgroundTransparency = 1
-				lbl.Font = Enum.Font.GothamBold
-				lbl.TextSize = 14
-				lbl.TextColor3 = Color3.fromRGB(255, 160, 40)
-				lbl.TextStrokeColor3 = Color3.fromRGB(10, 8, 22)
-				lbl.TextStrokeTransparency = 0.2
-				lbl.Parent = bb
-			end
-			bb.SK_WinStreak = nil -- just in case
-			local lbl = bb:FindFirstChild("StreakLbl")
-			if lbl then
-				lbl.Text = "\u{1F525}" .. streak
-			end
-		else
-			if bb then bb:Destroy() end
-		end
-	end
-end
-
-local function clearStreakBillboards()
-	for _, plr in pairs(Players:GetPlayers()) do
-		local char = plr.Character
-		if not char then continue end
-		local head = char:FindFirstChild("Head")
-		if not head then continue end
-		local bb = head:FindFirstChild("SK_WinStreak")
-		if bb then bb:Destroy() end
-	end
-end
-
 local function showGameUI()
 	gameActive=true; gamePanel.Visible=true
 	for i,slot in ipairs(playerSlots) do
@@ -705,99 +651,52 @@ local function resetAll()
 	end
 	updateLetterTiles("")
 end
--- ============ WAITING SCREEN (Royal Theme) ============
-local waitOverlay=create("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(10,8,22),BackgroundTransparency=1,Visible=false,ZIndex=30,Parent=gui})
-local waitPanel=create("Frame",{Size=UDim2.new(0,340*UI_SCALE,0,240*UI_SCALE),Position=UDim2.new(0.5,0,0.42,0),
-	AnchorPoint=Vector2.new(0.5,0.5),BackgroundColor3=Color3.fromRGB(22,16,42),BackgroundTransparency=0.1,
-	Visible=false,ZIndex=31,Parent=gui})
-create("UICorner",{CornerRadius=UDim.new(0,18),Parent=waitPanel})
-create("UIStroke",{Color=Color3.fromRGB(218,175,62),Thickness=2,Transparency=0.3,Parent=waitPanel})
--- Inner border
-local waitInner=create("Frame",{Size=UDim2.new(1,-10,1,-10),Position=UDim2.new(0.5,0,0.5,0),
-	AnchorPoint=Vector2.new(0.5,0.5),BackgroundTransparency=1,ZIndex=31,Parent=waitPanel})
-create("UICorner",{CornerRadius=UDim.new(0,14),Parent=waitInner})
-create("UIStroke",{Color=Color3.fromRGB(160,120,30),Thickness=1,Transparency=0.6,Parent=waitInner})
+-- ============ WAITING SCREEN ============
+local waitOverlay=create("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(0,0,0),
+	BackgroundTransparency=1,Visible=false,ZIndex=30,Parent=gui})
 
--- Crown
-local waitCrown=create("TextLabel",{Size=UDim2.new(0,40,0,35),Position=UDim2.new(0.5,0,0,12),
-	AnchorPoint=Vector2.new(0.5,0),BackgroundTransparency=1,Font=F.title,Text="\u{1F451}",
-	TextSize=28*UI_SCALE,TextColor3=Color3.fromRGB(218,175,62),TextStrokeTransparency=1,ZIndex=32,Parent=waitPanel})
+-- Status text (centered on screen)
+local waitLbl=create("TextLabel",{Size=UDim2.new(1,0,0,40),Position=UDim2.new(0.5,0,0.45,0),
+	AnchorPoint=Vector2.new(0.5,0.5),BackgroundTransparency=1,Font=F.big,Text="",
+	TextSize=24*UI_SCALE,TextColor3=Color3.fromRGB(235,240,250),
+	TextStrokeColor3=Color3.fromRGB(0,0,0),TextStrokeTransparency=0.2,ZIndex=31,Parent=waitOverlay})
 
--- Title
-local waitTitle=create("TextLabel",{Size=UDim2.new(1,-20,0,44),Position=UDim2.new(0.5,0,0,44),
-	AnchorPoint=Vector2.new(0.5,0),BackgroundTransparency=1,Font=F.title,
-	Text="SAMBUNG KATA",TextSize=32*UI_SCALE,TextColor3=Color3.fromRGB(255,215,90),
-	TextStrokeColor3=Color3.fromRGB(80,60,10),TextStrokeTransparency=0,ZIndex=32,Parent=waitPanel})
-
--- Gold divider with diamond
-local waitDivFrame=create("Frame",{Size=UDim2.new(0.65,0,0,14),Position=UDim2.new(0.5,0,0,92),
-	AnchorPoint=Vector2.new(0.5,0),BackgroundTransparency=1,ZIndex=32,Parent=waitPanel})
-local waitDivL=create("Frame",{Size=UDim2.new(0.42,0,0,2),Position=UDim2.new(0.5,-8,0.5,0),
-	AnchorPoint=Vector2.new(1,0.5),BackgroundColor3=Color3.fromRGB(218,175,62),ZIndex=32,Parent=waitDivFrame})
-local waitDivR=create("Frame",{Size=UDim2.new(0.42,0,0,2),Position=UDim2.new(0.5,8,0.5,0),
-	AnchorPoint=Vector2.new(0,0.5),BackgroundColor3=Color3.fromRGB(218,175,62),ZIndex=32,Parent=waitDivFrame})
-create("Frame",{Size=UDim2.new(0,7,0,7),Position=UDim2.new(0.5,0,0.5,0),
-	AnchorPoint=Vector2.new(0.5,0.5),BackgroundColor3=Color3.fromRGB(218,175,62),Rotation=45,ZIndex=33,Parent=waitDivFrame})
-
--- Status text
-local waitLbl=create("TextLabel",{Size=UDim2.new(1,-30,0,28),Position=UDim2.new(0.5,0,0,116),
-	AnchorPoint=Vector2.new(0.5,0),BackgroundTransparency=1,Font=F.name,Text="",
-	TextSize=18*UI_SCALE,TextColor3=Color3.fromRGB(240,230,210),
-	TextStrokeColor3=Color3.fromRGB(40,30,10),TextStrokeTransparency=0.3,ZIndex=32,Parent=waitPanel})
-
--- Loading dots (gold)
+-- Loading dots below text
 local waitDots={}
 for i=1,3 do
-	waitDots[i]=create("Frame",{Size=UDim2.new(0,10,0,10),Position=UDim2.new(0.5,-30+(i-1)*30,0,165),
-		AnchorPoint=Vector2.new(0.5,0.5),BackgroundColor3=Color3.fromRGB(218,175,62),Visible=false,ZIndex=32,Parent=waitPanel})
+	waitDots[i]=create("Frame",{Size=UDim2.new(0,8,0,8),Position=UDim2.new(0.5,-24+(i-1)*24,0.52,0),
+		AnchorPoint=Vector2.new(0.5,0.5),BackgroundColor3=C.white,Visible=false,ZIndex=31,Parent=waitOverlay})
 	create("UICorner",{CornerRadius=UDim.new(1,0),Parent=waitDots[i]})
 end
 
--- Hint
-local waitHint=create("TextLabel",{Size=UDim2.new(1,-30,0,20),Position=UDim2.new(0.5,0,1,-18),
-	AnchorPoint=Vector2.new(0.5,1),BackgroundTransparency=1,Font=F.chain,
-	Text="\u{2694} Siapkan kata terbaikmu! \u{2694}",TextSize=11*UI_SCALE,
-	TextColor3=Color3.fromRGB(140,120,90),TextStrokeTransparency=1,ZIndex=32,Parent=waitPanel})
-
 local waitAnimRunning=false
 local function showWait(text)
-	waitOverlay.Visible=true; waitOverlay.BackgroundTransparency=1; tw(waitOverlay,{BackgroundTransparency=0.45},0.6)
-	waitPanel.Visible=true; waitPanel.Size=UDim2.new(0,300*UI_SCALE,0,210*UI_SCALE)
-	tw(waitPanel,{Size=UDim2.new(0,340*UI_SCALE,0,240*UI_SCALE)},0.4,Enum.EasingStyle.Back)
-	waitCrown.TextTransparency=1; tw(waitCrown,{TextTransparency=0},0.4,Enum.EasingStyle.Quint)
-	waitTitle.TextTransparency=1; tw(waitTitle,{TextTransparency=0},0.5,Enum.EasingStyle.Quint)
-	waitDivL.Size=UDim2.new(0,0,0,2); waitDivR.Size=UDim2.new(0,0,0,2)
-	task.delay(0.3,function()
-		tw(waitDivL,{Size=UDim2.new(0.42,0,0,2)},0.6,Enum.EasingStyle.Quint)
-		tw(waitDivR,{Size=UDim2.new(0.42,0,0,2)},0.6,Enum.EasingStyle.Quint)
-	end)
-	waitLbl.TextTransparency=1; task.delay(0.3,function() tw(waitLbl,{TextTransparency=0},0.4) end)
-	waitHint.TextTransparency=1; task.delay(0.6,function() tw(waitHint,{TextTransparency=0},0.5) end)
+	waitOverlay.Visible=true; waitOverlay.BackgroundTransparency=1
+	tw(waitOverlay,{BackgroundTransparency=0.35},0.6) -- dark overlay
+	waitLbl.Text=text or "Menunggu lawan"
+	waitLbl.TextTransparency=1; tw(waitLbl,{TextTransparency=0},0.4)
 	for _,d in pairs(waitDots) do d.Visible=true; d.BackgroundTransparency=0 end
-	waitAnimRunning=true; waitLbl.Text=text or "Menunggu lawan"
+	waitAnimRunning=true
 	task.spawn(function()
 		while waitAnimRunning do
 			for i=1,3 do
 				if not waitAnimRunning then return end
-				tw(waitDots[i],{Size=UDim2.new(0,14,0,14),Position=UDim2.new(0.5,-30+(i-1)*30,0,158),BackgroundColor3=Color3.fromRGB(255,215,90)},0.2)
-				task.wait(0.12)
-				tw(waitDots[i],{Size=UDim2.new(0,10,0,10),Position=UDim2.new(0.5,-30+(i-1)*30,0,165),BackgroundColor3=Color3.fromRGB(120,90,30)},0.3,Enum.EasingStyle.Bounce)
+				tw(waitDots[i],{Size=UDim2.new(0,12,0,12),BackgroundColor3=C.white},0.2)
+				task.wait(0.15)
+				tw(waitDots[i],{Size=UDim2.new(0,8,0,8),BackgroundColor3=C.lightText},0.3)
 			end
-			task.wait(0.6)
+			task.wait(0.5)
 		end
 	end)
 end
 local function hideWait()
 	waitAnimRunning=false
-	tw(waitPanel,{Size=UDim2.new(0,300*UI_SCALE,0,210*UI_SCALE)},0.2,Enum.EasingStyle.Quad)
 	tw(waitOverlay,{BackgroundTransparency=1},0.3)
-	tw(waitCrown,{TextTransparency=1},0.2); tw(waitTitle,{TextTransparency=1},0.2)
-	tw(waitLbl,{TextTransparency=1},0.2); tw(waitHint,{TextTransparency=1},0.2)
-	tw(waitDivL,{Size=UDim2.new(0,0,0,2)},0.3); tw(waitDivR,{Size=UDim2.new(0,0,0,2)},0.3)
+	tw(waitLbl,{TextTransparency=1},0.2)
 	for _,d in pairs(waitDots) do tw(d,{BackgroundTransparency=1},0.2) end
 	task.delay(0.35,function()
-		waitOverlay.Visible=false; waitPanel.Visible=false
-		for _,d in pairs(waitDots) do d.Visible=false; d.BackgroundTransparency=0 end
+		waitOverlay.Visible=false
+		for _,d in pairs(waitDots) do d.Visible=false end
 	end)
 end
 -- ============ GAME EVENTS ============
@@ -813,7 +712,6 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 		for _,n in ipairs(data.players) do initHearts[n]=data.maxHearts or 3 end
 		activeNames=data.players
 		currentWinStreaks = data.winStreaks or {}
-		updateStreakBillboards()
 		MAX_CROSSES=data.maxCrosses or 5
 		updateCrosses(MAX_CROSSES)
 		showGameUI(); wordHistory={}
@@ -822,11 +720,7 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 			updateChain()
 		end
 		updatePlayers(initHearts, data.players)
-		local startMsg = "MULAI!"
-		if data.startWord and data.startWord ~= "" then
-			startMsg = "MULAI!  \u{2022}  " .. data.startWord:upper()
-		end
-		spawnText(startMsg,UDim2.new(0.5,0,0.4,0),C.goldLight,40,2.5,-70,F.title); screenFlash(C.gold,0.7,0.7)
+		spawnText("MULAI!",UDim2.new(0.5,0,0.4,0),C.goldLight,52,2.5,-70,F.title); screenFlash(C.gold,0.7,0.7)
 	elseif msg=="turn" then
 		currentTurnPlayer=data.playerName; local myTurn=data.playerName==player.Name
 		if data.lastLetter~="" then
@@ -876,7 +770,7 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 			for _, n in ipairs(activeNames) do
 				if n ~= winnerName then currentWinStreaks[n] = 0 end
 			end
-			updateStreakBillboards()
+			-- streaks updated server-side
 		end
 		if iWon then
 			startCameraZoom(winnerName); spawnText("MENANG!",UDim2.new(0.5,0,0.32,0),C.gold,52,4.5,-30,F.title); screenFlash(C.gold,0.4,1.2)
@@ -944,17 +838,17 @@ end) end
 
 
 
--- ============ ENTRANCE SCREEN (Royal Castle Theme) ============
+-- ============ ENTRANCE SCREEN (Red & Blue Theme) ============
 local Lighting = game:GetService("Lighting")
 if not player:GetAttribute("SK_EntranceDone") and player.Name ~= "Nafarel16" then
 player:SetAttribute("SK_EntranceDone", true)
-local GOLD = Color3.fromRGB(218,175,62)
-local GOLD_LIGHT = Color3.fromRGB(255,215,90)
-local GOLD_DARK = Color3.fromRGB(160,120,30)
-local ROYAL_BG = Color3.fromRGB(14,10,28)
-local ROYAL_PANEL = Color3.fromRGB(22,16,42)
-local ROYAL_ACCENT = Color3.fromRGB(45,30,80)
-local CREAM = Color3.fromRGB(240,230,210)
+local GOLD = Color3.fromRGB(220,45,55)        -- red accent
+local GOLD_LIGHT = Color3.fromRGB(255,80,90)  -- bright red
+local GOLD_DARK = Color3.fromRGB(160,30,40)   -- dark red
+local ROYAL_BG = Color3.fromRGB(6,12,30)      -- deep navy
+local ROYAL_PANEL = Color3.fromRGB(12,22,50)   -- dark blue panel
+local ROYAL_ACCENT = Color3.fromRGB(25,45,85)
+local CREAM = Color3.fromRGB(235,240,250)      -- cool white
 
 local entranceGui = create("ScreenGui",{Name="EntranceScreen",ResetOnSpawn=false,
 	ZIndexBehavior=Enum.ZIndexBehavior.Sibling,IgnoreGuiInset=true,DisplayOrder=100,Parent=playerGui})
@@ -963,9 +857,9 @@ local entranceGui = create("ScreenGui",{Name="EntranceScreen",ResetOnSpawn=false
 local entranceBg = create("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=ROYAL_BG,
 	BackgroundTransparency=0,ZIndex=1,Parent=entranceGui})
 create("UIGradient",{Color=ColorSequence.new({
-	ColorSequenceKeypoint.new(0,Color3.fromRGB(20,14,40)),
-	ColorSequenceKeypoint.new(0.5,Color3.fromRGB(14,10,28)),
-	ColorSequenceKeypoint.new(1,Color3.fromRGB(8,6,18)),
+	ColorSequenceKeypoint.new(0,Color3.fromRGB(10,20,50)),
+	ColorSequenceKeypoint.new(0.5,Color3.fromRGB(6,12,30)),
+	ColorSequenceKeypoint.new(1,Color3.fromRGB(3,6,18)),
 }),Rotation=180,Parent=entranceBg})
 
 -- Floating gold sparkles
@@ -1022,14 +916,14 @@ local crownLbl = create("TextLabel",{Size=UDim2.new(0,60*UI_SCALE,0,50*UI_SCALE)
 local titleLine1 = create("TextLabel",{Size=UDim2.new(1,0,0,50*UI_SCALE),
 	Position=UDim2.new(0.5,0,0,62*UI_SCALE),AnchorPoint=Vector2.new(0.5,0),
 	BackgroundTransparency=1,Font=F.title,Text="SAMBUNG",TextSize=48*UI_SCALE,
-	TextColor3=GOLD_LIGHT,TextStrokeColor3=Color3.fromRGB(80,60,10),TextStrokeTransparency=0,
+	TextColor3=GOLD_LIGHT,TextStrokeColor3=Color3.fromRGB(5,10,25),TextStrokeTransparency=0,
 	ZIndex=11,Parent=entrancePanel})
 
 -- Title: KATA
 local titleLine2 = create("TextLabel",{Size=UDim2.new(1,0,0,50*UI_SCALE),
 	Position=UDim2.new(0.5,0,0,108*UI_SCALE),AnchorPoint=Vector2.new(0.5,0),
 	BackgroundTransparency=1,Font=F.title,Text="KATA",TextSize=48*UI_SCALE,
-	TextColor3=CREAM,TextStrokeColor3=Color3.fromRGB(80,60,10),TextStrokeTransparency=0,
+	TextColor3=CREAM,TextStrokeColor3=Color3.fromRGB(5,10,25),TextStrokeTransparency=0,
 	ZIndex=11,Parent=entrancePanel})
 
 -- Gold ornamental divider
@@ -1047,20 +941,20 @@ local divCenter = create("Frame",{Size=UDim2.new(0,8,0,8),Position=UDim2.new(0.5
 local entranceSub = create("TextLabel",{Size=UDim2.new(1,-30,0,24*UI_SCALE),
 	Position=UDim2.new(0.5,0,0,185*UI_SCALE),AnchorPoint=Vector2.new(0.5,0),
 	BackgroundTransparency=1,Font=F.sub,Text="Adu Kosa Kata Bahasa Indonesia",
-	TextSize=14*UI_SCALE,TextColor3=Color3.fromRGB(180,170,150),
+	TextSize=14*UI_SCALE,TextColor3=Color3.fromRGB(150,170,200),
 	TextStrokeTransparency=1,ZIndex=11,Parent=entrancePanel})
 
 -- Play button (royal gold)
 local playBtn = create("TextButton",{Size=UDim2.new(0,220*UI_SCALE,0,52*UI_SCALE),
 	Position=UDim2.new(0.5,0,0,225*UI_SCALE),AnchorPoint=Vector2.new(0.5,0),
 	BackgroundColor3=GOLD,Font=F.big,Text="\u{2694}  MAIN  \u{2694}",TextSize=22*UI_SCALE,
-	TextColor3=Color3.fromRGB(30,20,5),AutoButtonColor=false,ClipsDescendants=true,ZIndex=12,Parent=entrancePanel})
+	TextColor3=Color3.fromRGB(255,255,255),AutoButtonColor=false,ClipsDescendants=true,ZIndex=12,Parent=entrancePanel})
 create("UICorner",{CornerRadius=UDim.new(0,12),Parent=playBtn})
 create("UIStroke",{Color=GOLD_DARK,Thickness=2,Parent=playBtn})
 create("UIGradient",{Color=ColorSequence.new({
-	ColorSequenceKeypoint.new(0,Color3.fromRGB(255,225,100)),
-	ColorSequenceKeypoint.new(0.5,Color3.fromRGB(218,175,62)),
-	ColorSequenceKeypoint.new(1,Color3.fromRGB(180,140,40)),
+	ColorSequenceKeypoint.new(0,Color3.fromRGB(255,90,100)),
+	ColorSequenceKeypoint.new(0.5,Color3.fromRGB(220,45,55)),
+	ColorSequenceKeypoint.new(1,Color3.fromRGB(170,30,40)),
 }),Rotation=90,Parent=playBtn})
 
 -- Shimmer line on button
@@ -1105,13 +999,13 @@ end)
 local footerLbl = create("TextLabel",{Size=UDim2.new(1,0,0,20*UI_SCALE),
 	Position=UDim2.new(0.5,0,0,295*UI_SCALE),AnchorPoint=Vector2.new(0.5,0),
 	BackgroundTransparency=1,Font=F.chain,Text="Perlihatkan kemahiran bahasamu",
-	TextSize=11*UI_SCALE,TextColor3=Color3.fromRGB(100,90,80),
+	TextSize=11*UI_SCALE,TextColor3=Color3.fromRGB(80,100,130),
 	TextStrokeTransparency=1,ZIndex=11,Parent=entrancePanel})
 
 -- Version
 create("TextLabel",{Size=UDim2.new(1,0,0,18),Position=UDim2.new(0.5,0,1,-12),
 	AnchorPoint=Vector2.new(0.5,1),BackgroundTransparency=1,Font=F.chain,
-	Text="v1.0",TextSize=10*UI_SCALE,TextColor3=Color3.fromRGB(60,50,40),
+	Text="v1.0",TextSize=10*UI_SCALE,TextColor3=Color3.fromRGB(40,55,80),
 	TextStrokeTransparency=1,ZIndex=11,Parent=entranceGui})
 
 -- Blur effect
@@ -1123,7 +1017,7 @@ blur.Parent = Lighting
 -- Color correction for warm royal tone
 local colorCorrect = Instance.new("ColorCorrectionEffect")
 colorCorrect.Name = "EntranceCC"
-colorCorrect.TintColor = Color3.fromRGB(240,220,200)
+colorCorrect.TintColor = Color3.fromRGB(200,210,240)
 colorCorrect.Brightness = -0.05
 colorCorrect.Contrast = 0.1
 colorCorrect.Parent = Lighting
