@@ -348,7 +348,7 @@ local playerSlotPositions = {
 	{pos=UDim2.new(0.03,0,0.88,0), anchor=Vector2.new(0,1), align=Enum.TextXAlignment.Left},
 	{pos=UDim2.new(0.97,0,0.88,0), anchor=Vector2.new(1,1), align=Enum.TextXAlignment.Right},
 }
-local playerSlots = {} -- {nameLbl, heartsLbl, streakLbl}
+local playerSlots = {} -- {nameLbl, heartsLbl}
 for i=1,4 do
 	local sp=playerSlotPositions[i]
 	local nameLbl=create("TextLabel",{Size=UDim2.new(0,200*UI_SCALE,0,22*UI_SCALE),
@@ -356,17 +356,12 @@ for i=1,4 do
 		BackgroundTransparency=1,Font=F.name,Text="",TextSize=16*UI_SCALE,
 		TextColor3=C.white,TextStrokeColor3=C.shadow,TextStrokeTransparency=0.3,
 		TextXAlignment=sp.align,Visible=false,ZIndex=10,Parent=gui})
-	local streakLbl=create("TextLabel",{Size=UDim2.new(0,200*UI_SCALE,0,16*UI_SCALE),
-		Position=sp.pos+UDim2.new(0,0,0,(i<=2 and 22 or -22)*UI_SCALE),AnchorPoint=sp.anchor,
-		BackgroundTransparency=1,Font=F.name,Text="",TextSize=12*UI_SCALE,
-		TextColor3=Color3.fromRGB(255,160,40),TextStrokeColor3=C.shadow,TextStrokeTransparency=0.3,
-		TextXAlignment=sp.align,Visible=false,ZIndex=10,Parent=gui})
 	local heartsLbl=create("TextLabel",{Size=UDim2.new(0,200*UI_SCALE,0,22*UI_SCALE),
-		Position=sp.pos+UDim2.new(0,0,0,(i<=2 and 38 or -38)*UI_SCALE),AnchorPoint=sp.anchor,
+		Position=sp.pos+UDim2.new(0,0,0,(i<=2 and 24 or -24)*UI_SCALE),AnchorPoint=sp.anchor,
 		BackgroundTransparency=1,Font=F.heart,Text="",TextSize=18*UI_SCALE,
 		TextColor3=C.heartRed,TextStrokeColor3=Color3.fromRGB(10,8,22),TextStrokeTransparency=0.2,
 		TextXAlignment=sp.align,Visible=false,ZIndex=10,Parent=gui})
-	playerSlots[i]={nameLbl=nameLbl,heartsLbl=heartsLbl,streakLbl=streakLbl}
+	playerSlots[i]={nameLbl=nameLbl,heartsLbl=heartsLbl}
 end
 
 -- ============ MOBILE KEYBOARD ============
@@ -586,6 +581,61 @@ local function heartsStr(count, max)
 	return s
 end
 local currentWinStreaks = {} -- playerName -> streak
+
+-- Winstreak BillboardGui under player names in the 3D world
+local function updateStreakBillboards()
+	for _, plr in pairs(Players:GetPlayers()) do
+		local char = plr.Character
+		if not char then continue end
+		local head = char:FindFirstChild("Head")
+		if not head then continue end
+		local streak = currentWinStreaks[plr.Name] or 0
+
+		-- Find or create the billboard
+		local bb = head:FindFirstChild("SK_WinStreak")
+		if streak > 0 then
+			if not bb then
+				bb = Instance.new("BillboardGui")
+				bb.Name = "SK_WinStreak"
+				bb.Size = UDim2.new(0, 100, 0, 20)
+				bb.StudsOffset = Vector3.new(0, -0.5, 0) -- below the name
+				bb.AlwaysOnTop = true
+				bb.MaxDistance = 30
+				bb.Parent = head
+
+				local lbl = Instance.new("TextLabel")
+				lbl.Name = "StreakLbl"
+				lbl.Size = UDim2.new(1, 0, 1, 0)
+				lbl.BackgroundTransparency = 1
+				lbl.Font = Enum.Font.GothamBold
+				lbl.TextSize = 14
+				lbl.TextColor3 = Color3.fromRGB(255, 160, 40)
+				lbl.TextStrokeColor3 = Color3.fromRGB(10, 8, 22)
+				lbl.TextStrokeTransparency = 0.2
+				lbl.Parent = bb
+			end
+			bb.SK_WinStreak = nil -- just in case
+			local lbl = bb:FindFirstChild("StreakLbl")
+			if lbl then
+				lbl.Text = "\u{1F525}" .. streak
+			end
+		else
+			if bb then bb:Destroy() end
+		end
+	end
+end
+
+local function clearStreakBillboards()
+	for _, plr in pairs(Players:GetPlayers()) do
+		local char = plr.Character
+		if not char then continue end
+		local head = char:FindFirstChild("Head")
+		if not head then continue end
+		local bb = head:FindFirstChild("SK_WinStreak")
+		if bb then bb:Destroy() end
+	end
+end
+
 local function showGameUI()
 	gameActive=true; gamePanel.Visible=true
 	for i,slot in ipairs(playerSlots) do
@@ -594,16 +644,6 @@ local function showGameUI()
 			slot.nameLbl.TextTransparency=1; slot.heartsLbl.TextTransparency=1
 			tw(slot.nameLbl,{TextTransparency=0},0.5)
 			tw(slot.heartsLbl,{TextTransparency=0},0.6)
-			-- Show streak if > 0
-			local streak = currentWinStreaks[activeNames[i]] or 0
-			if streak > 0 then
-				slot.streakLbl.Text = "\u{1F525}" .. streak
-				slot.streakLbl.Visible = true
-				slot.streakLbl.TextTransparency = 1
-				tw(slot.streakLbl, {TextTransparency = 0}, 0.5)
-			else
-				slot.streakLbl.Visible = false
-			end
 		end
 	end
 end
@@ -612,7 +652,7 @@ local function hideGameUI()
 	gamePanel.Visible=false
 	if IS_MOBILE then hideMobileKeyboard() end
 	for _,slot in ipairs(playerSlots) do
-		slot.nameLbl.Visible=false; slot.heartsLbl.Visible=false; slot.streakLbl.Visible=false
+		slot.nameLbl.Visible=false; slot.heartsLbl.Visible=false
 	end
 	redVignette.Visible=false; redVignette.ImageTransparency=1
 end
@@ -660,8 +700,8 @@ local function resetAll()
 	wordBoxLbl.Text=""
 	updateCrosses(MAX_CROSSES)
 	for _,slot in ipairs(playerSlots) do
-		slot.nameLbl.Text=""; slot.heartsLbl.Text=""; slot.streakLbl.Text=""
-		slot.nameLbl.Visible=false; slot.heartsLbl.Visible=false; slot.streakLbl.Visible=false
+		slot.nameLbl.Text=""; slot.heartsLbl.Text=""
+		slot.nameLbl.Visible=false; slot.heartsLbl.Visible=false
 	end
 	updateLetterTiles("")
 end
@@ -773,6 +813,7 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 		for _,n in ipairs(data.players) do initHearts[n]=data.maxHearts or 3 end
 		activeNames=data.players
 		currentWinStreaks = data.winStreaks or {}
+		updateStreakBillboards()
 		MAX_CROSSES=data.maxCrosses or 5
 		updateCrosses(MAX_CROSSES)
 		showGameUI(); wordHistory={}
@@ -828,6 +869,15 @@ GameUpdate.OnClientEvent:Connect(function(msg, data)
 		local loserName=msg=="eliminated" and data.playerName or nil
 		local iWon=winnerName==player.Name; local iLost=loserName==player.Name
 		setInputActive(false)
+		-- Update winstreaks on win
+		if winnerName and data.winStreak then
+			currentWinStreaks[winnerName] = data.winStreak
+			-- Reset losers
+			for _, n in ipairs(activeNames) do
+				if n ~= winnerName then currentWinStreaks[n] = 0 end
+			end
+			updateStreakBillboards()
+		end
 		if iWon then
 			startCameraZoom(winnerName); spawnText("MENANG!",UDim2.new(0.5,0,0.32,0),C.gold,52,4.5,-30,F.title); screenFlash(C.gold,0.4,1.2)
 			task.spawn(function()
