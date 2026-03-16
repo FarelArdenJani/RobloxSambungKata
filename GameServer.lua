@@ -350,7 +350,7 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 
 		local bb = Instance.new("BillboardGui")
 		bb.Name = "SK_PlayerCount"
-		bb.Size = UDim2.new(0, 80, 0, 36)
+		bb.Size = UDim2.new(0, 160, 0, 60)
 		bb.StudsOffset = Vector3.new(0, 5, 0)
 		bb.AlwaysOnTop = true
 		bb.MaxDistance = 40
@@ -361,7 +361,7 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 		countLbl.Size = UDim2.new(1, 0, 1, 0)
 		countLbl.BackgroundTransparency = 1
 		countLbl.Font = Enum.Font.GothamBold
-		countLbl.TextSize = 20
+		countLbl.TextSize = 36
 		countLbl.TextColor3 = Color3.fromRGB(235, 240, 250)
 		countLbl.TextStrokeColor3 = Color3.fromRGB(5, 10, 25)
 		countLbl.TextStrokeTransparency = 0.2
@@ -547,6 +547,7 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 	function game_inst:endGame(reason)
 		if not self.gameRunning then return end
 		self.gameRunning = false
+		if self.billboard then self.billboard.Enabled = true end
 		for _, p in pairs(self.activePlayers) do self:setJumpEnabled(p, true) end
 		self:broadcast("gameEnded", {reason = reason})
 		self.activePlayers = {}
@@ -587,6 +588,7 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 				self:broadcast("noWinner", {})
 			end
 			self.gameRunning = false
+			if self.billboard then self.billboard.Enabled = true end
 			self.activePlayers = {}
 			self.playerHearts = {}
 			self.playerCrosses = {}
@@ -700,6 +702,7 @@ local function createGameInstance(locationName, seats, model, maxPlayers, minPla
 		self.usedWords = {}
 		self.lastLetterHistory = {}
 		self.gameRunning = true
+		if self.billboard then self.billboard.Enabled = false end
 		-- Store participant names for winstreak tracking
 		self.gameParticipants = {}
 		for _, p in ipairs(self.activePlayers) do

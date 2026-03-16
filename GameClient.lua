@@ -18,30 +18,30 @@ local TimerUpdate = ReplicatedStorage:WaitForChild("TimerUpdate")
 local TypingUpdate = ReplicatedStorage:WaitForChild("TypingUpdate", 10)
 local AutoplayWord = ReplicatedStorage:WaitForChild("AutoplayWord", 10)
 
--- ============ COLORS (Red & Blue Theme) ============
+-- ============ COLORS (Clean Dark Theme) ============
 local C = {
-	white      = Color3.fromRGB(235,240,250),  -- cool white
-	darkText   = Color3.fromRGB(10,15,30),
-	medText    = Color3.fromRGB(120,140,170),
-	lightText  = Color3.fromRGB(170,185,210),
-	tileBg     = Color3.fromRGB(20,35,70),      -- deep blue tile
-	tileText   = Color3.fromRGB(255,255,255),   -- white tile text
-	red        = Color3.fromRGB(220,45,55),
-	heartRed   = Color3.fromRGB(220,45,55),
-	green      = Color3.fromRGB(60,180,90),     -- actual green for success
-	gold       = Color3.fromRGB(220,45,55),     -- red as primary accent
-	goldLight  = Color3.fromRGB(255,80,90),     -- bright red
-	goldDark   = Color3.fromRGB(160,30,40),     -- dark red
-	royal      = Color3.fromRGB(10,18,40),      -- deep navy
-	royalLight = Color3.fromRGB(20,35,70),
-	royalAccent= Color3.fromRGB(35,55,100),
-	inputBorder= Color3.fromRGB(220,45,55),     -- red border
-	overlay    = Color3.fromRGB(5,10,25),
-	shadow     = Color3.fromRGB(5,10,25),
-	keyBg      = Color3.fromRGB(18,30,60),      -- dark blue keys
-	keyPress   = Color3.fromRGB(30,50,90),
-	keyboardBg = Color3.fromRGB(8,14,32),
-	previewBg  = Color3.fromRGB(15,25,55),
+	white      = Color3.fromRGB(240,240,245),
+	darkText   = Color3.fromRGB(10,10,15),
+	medText    = Color3.fromRGB(140,140,150),
+	lightText  = Color3.fromRGB(180,180,190),
+	tileBg     = Color3.fromRGB(35,35,42),       -- dark gray tile
+	tileText   = Color3.fromRGB(255,255,255),    -- white tile text
+	red        = Color3.fromRGB(220,55,65),
+	heartRed   = Color3.fromRGB(220,55,65),
+	green      = Color3.fromRGB(65,190,100),
+	gold       = Color3.fromRGB(240,240,245),    -- white as primary accent
+	goldLight  = Color3.fromRGB(255,255,255),    -- bright white
+	goldDark   = Color3.fromRGB(180,180,190),    -- muted white
+	royal      = Color3.fromRGB(0,0,0),          -- black
+	royalLight = Color3.fromRGB(25,25,30),
+	royalAccent= Color3.fromRGB(45,45,55),
+	inputBorder= Color3.fromRGB(80,80,95),       -- subtle gray border
+	overlay    = Color3.fromRGB(0,0,0),
+	shadow     = Color3.fromRGB(0,0,0),
+	keyBg      = Color3.fromRGB(30,30,38),       -- dark gray keys
+	keyPress   = Color3.fromRGB(50,50,60),
+	keyboardBg = Color3.fromRGB(12,12,16),
+	previewBg  = Color3.fromRGB(20,20,25),
 }
 -- ============ FONTS ============
 local F = {
@@ -244,14 +244,13 @@ local gamePanel=create("Frame",{Name="GamePanel",Size=UDim2.new(0,340*UI_SCALE,0
 	Position=UDim2.new(0.5,0,0.38,0),AnchorPoint=Vector2.new(0.5,0.5),
 	BackgroundTransparency=1,Visible=false,ZIndex=10,Parent=gui})
 
--- Row 1: Current word in bordered box (royal)
-local wordBox=create("Frame",{Size=UDim2.new(0,180*UI_SCALE,0,32*UI_SCALE),Position=UDim2.new(0.5,0,0,4*UI_SCALE),
-	AnchorPoint=Vector2.new(0.5,0),BackgroundColor3=C.royal,BackgroundTransparency=0.2,ZIndex=11,Parent=gamePanel})
-create("UICorner",{CornerRadius=UDim.new(0,8),Parent=wordBox})
-create("UIStroke",{Color=C.gold,Thickness=2,Transparency=0.3,Parent=wordBox})
+-- Row 1: Current word
+local wordBox=create("Frame",{Size=UDim2.new(0,200*UI_SCALE,0,32*UI_SCALE),Position=UDim2.new(0.5,0,0,4*UI_SCALE),
+	AnchorPoint=Vector2.new(0.5,0),BackgroundColor3=C.white,BackgroundTransparency=0.85,ZIndex=11,Parent=gamePanel})
+create("UICorner",{CornerRadius=UDim.new(0,10),Parent=wordBox})
 local wordBoxLbl=create("TextLabel",{Size=UDim2.new(1,-10,1,0),Position=UDim2.new(0.5,0,0.5,0),AnchorPoint=Vector2.new(0.5,0.5),
-	BackgroundTransparency=1,Font=F.big,Text="",TextSize=20*UI_SCALE,TextColor3=C.goldLight,
-	TextStrokeColor3=C.shadow,TextStrokeTransparency=0.3,ZIndex=12,Parent=wordBox})
+	BackgroundTransparency=1,Font=F.big,Text="",TextSize=20*UI_SCALE,TextColor3=C.white,
+	TextStrokeColor3=C.shadow,TextStrokeTransparency=0.2,ZIndex=12,Parent=wordBox})
 
 -- Row 2: Letter tiles
 local tilesFrame=create("Frame",{Size=UDim2.new(1,-30,0,40*UI_SCALE),Position=UDim2.new(0.5,0,0,42*UI_SCALE),
@@ -272,7 +271,6 @@ local function updateLetterTiles(word)
 			Position=UDim2.new(0,startX+(i-1)*(tileSize+gap),0.5,0),AnchorPoint=Vector2.new(0,0.5),
 			BackgroundColor3=C.tileBg,ZIndex=12,Parent=tilesFrame})
 		create("UICorner",{CornerRadius=UDim.new(0,8),Parent=tile})
-		create("UIStroke",{Color=C.goldDark,Thickness=1,Transparency=0.4,Parent=tile})
 		create("TextLabel",{Size=UDim2.new(1,0,1,0),Position=UDim2.new(0.5,0,0.5,0),AnchorPoint=Vector2.new(0.5,0.5),
 			BackgroundTransparency=1,Font=F.letter,Text=letter,TextSize=math.min(22,tileSize-6),
 			TextColor3=C.tileText,TextStrokeTransparency=1,ZIndex=13,Parent=tile})
@@ -292,12 +290,11 @@ local crossIcons={}
 for i=1,MAX_CROSSES do
 	local circle=create("Frame",{Size=UDim2.new(0,CROSS_SIZE,0,CROSS_SIZE),
 		Position=UDim2.new(0,(i-1)*(CROSS_SIZE+CROSS_GAP),0.5,0),AnchorPoint=Vector2.new(0,0.5),
-		BackgroundColor3=Color3.fromRGB(18,30,60),ZIndex=12,Parent=crossesFrame})
+		BackgroundColor3=Color3.fromRGB(40,40,48),ZIndex=12,Parent=crossesFrame})
 	create("UICorner",{CornerRadius=UDim.new(1,0),Parent=circle})
-	create("UIStroke",{Color=Color3.fromRGB(40,65,120),Thickness=2,Parent=circle})
 	local xLbl=create("TextLabel",{Size=UDim2.new(1,0,1,0),Position=UDim2.new(0.5,0,0.5,0),
 		AnchorPoint=Vector2.new(0.5,0.5),BackgroundTransparency=1,Font=F.big,
-		Text="X",TextSize=14*UI_SCALE,TextColor3=Color3.fromRGB(255,68,68),
+		Text="X",TextSize=14*UI_SCALE,TextColor3=Color3.fromRGB(220,55,65),
 		TextStrokeTransparency=1,ZIndex=13,Parent=circle})
 	crossIcons[i]={circle=circle, lbl=xLbl}
 end
@@ -310,12 +307,12 @@ local function updateCrosses(count)
 	currentCrosses=count
 	for i=1,MAX_CROSSES do
 		if i<=count then
-			crossIcons[i].circle.BackgroundColor3=Color3.fromRGB(18,30,60)
-			crossIcons[i].lbl.TextColor3=Color3.fromRGB(220,55,55)
+			crossIcons[i].circle.BackgroundColor3=Color3.fromRGB(40,40,48)
+			crossIcons[i].lbl.TextColor3=Color3.fromRGB(220,55,65)
 			crossIcons[i].lbl.TextTransparency=0
 		else
-			crossIcons[i].circle.BackgroundColor3=Color3.fromRGB(8,15,35)
-			crossIcons[i].lbl.TextColor3=Color3.fromRGB(25,40,70)
+			crossIcons[i].circle.BackgroundColor3=Color3.fromRGB(20,20,25)
+			crossIcons[i].lbl.TextColor3=Color3.fromRGB(40,40,48)
 			crossIcons[i].lbl.TextTransparency=0.5
 		end
 	end
@@ -326,9 +323,9 @@ local timerLbl=create("TextLabel",{Size=UDim2.new(0,120*UI_SCALE,0,30*UI_SCALE),
 	AnchorPoint=Vector2.new(0.5,0),BackgroundTransparency=1,Font=F.big,Text="",TextSize=26*UI_SCALE,
 	TextColor3=C.green,TextStrokeColor3=Color3.fromRGB(0,0,0),TextStrokeTransparency=0.3,ZIndex=11,Parent=gamePanel})
 local timerBarBg=create("Frame",{Size=UDim2.new(0.7,0,0,6*UI_SCALE),Position=UDim2.new(0.5,0,0,174*UI_SCALE),
-	AnchorPoint=Vector2.new(0.5,0),BackgroundColor3=Color3.fromRGB(12,22,50),ZIndex=11,Parent=gamePanel})
+	AnchorPoint=Vector2.new(0.5,0),BackgroundColor3=Color3.fromRGB(25,25,30),ZIndex=11,Parent=gamePanel})
 create("UICorner",{CornerRadius=UDim.new(1,0),Parent=timerBarBg})
-create("UIStroke",{Color=C.goldDark,Thickness=1,Transparency=0.5,Parent=timerBarBg})
+create("UIStroke",{Color=Color3.fromRGB(60,60,70),Thickness=1,Transparency=0.5,Parent=timerBarBg})
 local timerBar=create("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.green,ZIndex=12,Parent=timerBarBg})
 create("UICorner",{CornerRadius=UDim.new(1,0),Parent=timerBar})
 -- Giliran (turn indicator)
@@ -453,7 +450,7 @@ local function buildMobileKeyboard()
 			Size=UDim2.new(bsFrac,-GAP,1,-2),
 			Position=UDim2.new(1-bsFrac,-GAP/2,0.5,0),
 			AnchorPoint=Vector2.new(0,0.5),BackgroundColor3=Color3.fromRGB(140,35,40),Font=F.key,
-			Text="\u{232B}",TextSize=18,TextColor3=C.white,
+			Text="\u{2190}",TextSize=20,TextColor3=C.white,
 			AutoButtonColor=false,ZIndex=27,Parent=rowFrame})
 		create("UICorner",{CornerRadius=UDim.new(0,4),Parent=bsBtn})
 		bsBtn.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch then tw(bsBtn,{BackgroundColor3=Color3.fromRGB(100,25,30)},0.05) end end)
@@ -472,7 +469,7 @@ local function buildMobileKeyboard()
 	local masukBtn=create("TextButton",{Size=UDim2.new(1,-8,0,ROW_H),
 		Position=UDim2.new(0.5,0,0,row4Y),AnchorPoint=Vector2.new(0.5,0),
 		BackgroundColor3=C.gold,Font=F.status,
-		Text="Masuk",TextSize=16,TextColor3=C.darkText,AutoButtonColor=false,ZIndex=27,Parent=kbPanel})
+		Text="Enter",TextSize=16,TextColor3=C.darkText,AutoButtonColor=false,ZIndex=27,Parent=kbPanel})
 	create("UICorner",{CornerRadius=UDim.new(0,4),Parent=masukBtn})
 	masukBtn.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch then tw(masukBtn,{BackgroundColor3=C.goldDark},0.05) end end)
 	masukBtn.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch then tw(masukBtn,{BackgroundColor3=C.gold},0.12) end end)
@@ -838,188 +835,136 @@ end) end
 
 
 
--- ============ ENTRANCE SCREEN (Red & Blue Theme) ============
+-- ============ ENTRANCE SCREEN (Clean Dark — Word Game Theme) ============
 local Lighting = game:GetService("Lighting")
 if not player:GetAttribute("SK_EntranceDone") and player.Name ~= "Nafarel16" then
 player:SetAttribute("SK_EntranceDone", true)
-local GOLD = Color3.fromRGB(220,45,55)        -- red accent
-local GOLD_LIGHT = Color3.fromRGB(255,80,90)  -- bright red
-local GOLD_DARK = Color3.fromRGB(160,30,40)   -- dark red
-local ROYAL_BG = Color3.fromRGB(6,12,30)      -- deep navy
-local ROYAL_PANEL = Color3.fromRGB(12,22,50)   -- dark blue panel
-local ROYAL_ACCENT = Color3.fromRGB(25,45,85)
-local CREAM = Color3.fromRGB(235,240,250)      -- cool white
 
 local entranceGui = create("ScreenGui",{Name="EntranceScreen",ResetOnSpawn=false,
 	ZIndexBehavior=Enum.ZIndexBehavior.Sibling,IgnoreGuiInset=true,DisplayOrder=100,Parent=playerGui})
 
--- Deep royal background with gradient
-local entranceBg = create("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=ROYAL_BG,
+-- Full black background
+local entranceBg = create("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(0,0,0),
 	BackgroundTransparency=0,ZIndex=1,Parent=entranceGui})
-create("UIGradient",{Color=ColorSequence.new({
-	ColorSequenceKeypoint.new(0,Color3.fromRGB(10,20,50)),
-	ColorSequenceKeypoint.new(0.5,Color3.fromRGB(6,12,30)),
-	ColorSequenceKeypoint.new(1,Color3.fromRGB(3,6,18)),
-}),Rotation=180,Parent=entranceBg})
 
--- Floating gold sparkles
-local particleHolder = create("Frame",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
+-- Floating letter tiles in background
+local tileHolder = create("Frame",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
 	ZIndex=2,ClipsDescendants=true,Parent=entranceGui})
+local tileLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 task.spawn(function()
 	while entranceGui.Parent do
 		local px = math.random(5,95)/100
-		local sz = math.random(2,5)
-		local sparkle = create("Frame",{Size=UDim2.new(0,sz,0,sz),Position=UDim2.new(px,0,1.05,0),
-			AnchorPoint=Vector2.new(0.5,0.5),BackgroundColor3=GOLD_LIGHT,BackgroundTransparency=0.3,
-			Rotation=45,ZIndex=2,Parent=particleHolder})
-		create("UICorner",{CornerRadius=UDim.new(1,0),Parent=sparkle})
-		local dur = math.random(50,90)/10
-		tw(sparkle,{Position=UDim2.new(px+math.random(-8,8)/100,0,-0.1,0),
-			BackgroundTransparency=1,Size=UDim2.new(0,1,0,1)},dur,Enum.EasingStyle.Linear)
-		task.delay(dur,function() sparkle:Destroy() end)
-		task.wait(0.2)
+		local sz = math.random(28,42)*UI_SCALE
+		local letter = string.sub(tileLetters, math.random(1,26), math.random(1,26))
+		letter = string.sub(letter,1,1)
+		local tile = create("Frame",{Size=UDim2.new(0,sz,0,sz),Position=UDim2.new(px,0,1.1,0),
+			AnchorPoint=Vector2.new(0.5,0.5),BackgroundColor3=Color3.fromRGB(25,25,32),
+			BackgroundTransparency=0.4,Rotation=math.random(-15,15),ZIndex=2,Parent=tileHolder})
+		create("UICorner",{CornerRadius=UDim.new(0,6),Parent=tile})
+		create("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
+			Font=F.title,Text=letter,TextSize=sz*0.6,
+			TextColor3=Color3.fromRGB(60,60,70),TextStrokeTransparency=1,
+			ZIndex=3,Parent=tile})
+		local dur = math.random(60,120)/10
+		tw(tile,{Position=UDim2.new(px+math.random(-10,10)/100,0,-0.15,0),
+			BackgroundTransparency=1,Rotation=math.random(-30,30)},dur,Enum.EasingStyle.Linear)
+		task.delay(dur,function() tile:Destroy() end)
+		task.wait(0.4)
 	end
 end)
 
--- Top ornamental line
-local topOrnament = create("Frame",{Size=UDim2.new(0.6,0,0,2),Position=UDim2.new(0.5,0,0.18,0),
-	AnchorPoint=Vector2.new(0.5,0.5),BackgroundColor3=GOLD_DARK,BackgroundTransparency=0.4,ZIndex=5,Parent=entranceGui})
--- Top diamond
-local topDiamond = create("Frame",{Size=UDim2.new(0,12,0,12),Position=UDim2.new(0.5,0,0.18,0),
-	AnchorPoint=Vector2.new(0.5,0.5),BackgroundColor3=GOLD,Rotation=45,ZIndex=6,Parent=entranceGui})
+-- Thin horizontal line separator above content
+local topLine = create("Frame",{Size=UDim2.new(0,0,0,1),Position=UDim2.new(0.5,0,0.3,0),
+	AnchorPoint=Vector2.new(0.5,0.5),BackgroundColor3=Color3.fromRGB(60,60,70),
+	BackgroundTransparency=0.5,ZIndex=5,Parent=entranceGui})
 
--- Bottom ornamental line
-local botOrnament = create("Frame",{Size=UDim2.new(0.6,0,0,2),Position=UDim2.new(0.5,0,0.82,0),
-	AnchorPoint=Vector2.new(0.5,0.5),BackgroundColor3=GOLD_DARK,BackgroundTransparency=0.4,ZIndex=5,Parent=entranceGui})
-local botDiamond = create("Frame",{Size=UDim2.new(0,12,0,12),Position=UDim2.new(0.5,0,0.82,0),
-	AnchorPoint=Vector2.new(0.5,0.5),BackgroundColor3=GOLD,Rotation=45,ZIndex=6,Parent=entranceGui})
-
--- Center panel with royal frame
-local entrancePanel = create("Frame",{Size=UDim2.new(0,380*UI_SCALE,0,360*UI_SCALE),
-	Position=UDim2.new(0.5,0,0.48,0),AnchorPoint=Vector2.new(0.5,0.5),
-	BackgroundColor3=ROYAL_PANEL,BackgroundTransparency=0.1,ZIndex=10,Parent=entranceGui})
-create("UICorner",{CornerRadius=UDim.new(0,20),Parent=entrancePanel})
-create("UIStroke",{Color=GOLD,Thickness=2,Transparency=0.3,Parent=entrancePanel})
--- Inner glow border
-local innerBorder = create("Frame",{Size=UDim2.new(1,-12,1,-12),Position=UDim2.new(0.5,0,0.5,0),
-	AnchorPoint=Vector2.new(0.5,0.5),BackgroundTransparency=1,ZIndex=10,Parent=entrancePanel})
-create("UICorner",{CornerRadius=UDim.new(0,16),Parent=innerBorder})
-create("UIStroke",{Color=GOLD_DARK,Thickness=1,Transparency=0.6,Parent=innerBorder})
-
--- Crown emoji
-local crownLbl = create("TextLabel",{Size=UDim2.new(0,60*UI_SCALE,0,50*UI_SCALE),
-	Position=UDim2.new(0.5,0,0,16*UI_SCALE),AnchorPoint=Vector2.new(0.5,0),
-	BackgroundTransparency=1,Font=F.title,Text="\u{1F451}",TextSize=42*UI_SCALE,
-	TextColor3=GOLD,TextStrokeTransparency=1,ZIndex=11,Parent=entrancePanel})
-
--- Title: SAMBUNG
-local titleLine1 = create("TextLabel",{Size=UDim2.new(1,0,0,50*UI_SCALE),
-	Position=UDim2.new(0.5,0,0,62*UI_SCALE),AnchorPoint=Vector2.new(0.5,0),
-	BackgroundTransparency=1,Font=F.title,Text="SAMBUNG",TextSize=48*UI_SCALE,
-	TextColor3=GOLD_LIGHT,TextStrokeColor3=Color3.fromRGB(5,10,25),TextStrokeTransparency=0,
-	ZIndex=11,Parent=entrancePanel})
-
--- Title: KATA
-local titleLine2 = create("TextLabel",{Size=UDim2.new(1,0,0,50*UI_SCALE),
-	Position=UDim2.new(0.5,0,0,108*UI_SCALE),AnchorPoint=Vector2.new(0.5,0),
-	BackgroundTransparency=1,Font=F.title,Text="KATA",TextSize=48*UI_SCALE,
-	TextColor3=CREAM,TextStrokeColor3=Color3.fromRGB(5,10,25),TextStrokeTransparency=0,
-	ZIndex=11,Parent=entrancePanel})
-
--- Gold ornamental divider
-local dividerFrame = create("Frame",{Size=UDim2.new(0.7,0,0,16*UI_SCALE),
-	Position=UDim2.new(0.5,0,0,162*UI_SCALE),AnchorPoint=Vector2.new(0.5,0),
-	BackgroundTransparency=1,ZIndex=11,Parent=entrancePanel})
-local divLeft = create("Frame",{Size=UDim2.new(0,0,0,2),Position=UDim2.new(0.5,-10,0.5,0),
-	AnchorPoint=Vector2.new(1,0.5),BackgroundColor3=GOLD,ZIndex=11,Parent=dividerFrame})
-local divRight = create("Frame",{Size=UDim2.new(0,0,0,2),Position=UDim2.new(0.5,10,0.5,0),
-	AnchorPoint=Vector2.new(0,0.5),BackgroundColor3=GOLD,ZIndex=11,Parent=dividerFrame})
-local divCenter = create("Frame",{Size=UDim2.new(0,8,0,8),Position=UDim2.new(0.5,0,0.5,0),
-	AnchorPoint=Vector2.new(0.5,0.5),BackgroundColor3=GOLD,Rotation=45,ZIndex=12,Parent=dividerFrame})
+-- Title: SAMBUNG KATA — single line, big and clean
+local titleLbl = create("TextLabel",{Size=UDim2.new(1,0,0,60*UI_SCALE),
+	Position=UDim2.new(0.5,0,0.38,0),AnchorPoint=Vector2.new(0.5,0.5),
+	BackgroundTransparency=1,Font=F.title,Text="SAMBUNG KATA",TextSize=52*UI_SCALE,
+	TextColor3=Color3.fromRGB(255,255,255),TextStrokeColor3=Color3.fromRGB(0,0,0),
+	TextStrokeTransparency=0.5,ZIndex=10,Parent=entranceGui})
 
 -- Subtitle
-local entranceSub = create("TextLabel",{Size=UDim2.new(1,-30,0,24*UI_SCALE),
-	Position=UDim2.new(0.5,0,0,185*UI_SCALE),AnchorPoint=Vector2.new(0.5,0),
+local entranceSub = create("TextLabel",{Size=UDim2.new(0.8,0,0,24*UI_SCALE),
+	Position=UDim2.new(0.5,0,0.44,0),AnchorPoint=Vector2.new(0.5,0),
 	BackgroundTransparency=1,Font=F.sub,Text="Adu Kosa Kata Bahasa Indonesia",
-	TextSize=14*UI_SCALE,TextColor3=Color3.fromRGB(150,170,200),
-	TextStrokeTransparency=1,ZIndex=11,Parent=entrancePanel})
+	TextSize=15*UI_SCALE,TextColor3=Color3.fromRGB(120,120,130),
+	TextStrokeTransparency=1,ZIndex=10,Parent=entranceGui})
 
--- Play button (royal gold)
-local playBtn = create("TextButton",{Size=UDim2.new(0,220*UI_SCALE,0,52*UI_SCALE),
-	Position=UDim2.new(0.5,0,0,225*UI_SCALE),AnchorPoint=Vector2.new(0.5,0),
-	BackgroundColor3=GOLD,Font=F.big,Text="\u{2694}  MAIN  \u{2694}",TextSize=22*UI_SCALE,
-	TextColor3=Color3.fromRGB(255,255,255),AutoButtonColor=false,ClipsDescendants=true,ZIndex=12,Parent=entrancePanel})
-create("UICorner",{CornerRadius=UDim.new(0,12),Parent=playBtn})
-create("UIStroke",{Color=GOLD_DARK,Thickness=2,Parent=playBtn})
-create("UIGradient",{Color=ColorSequence.new({
-	ColorSequenceKeypoint.new(0,Color3.fromRGB(255,90,100)),
-	ColorSequenceKeypoint.new(0.5,Color3.fromRGB(220,45,55)),
-	ColorSequenceKeypoint.new(1,Color3.fromRGB(170,30,40)),
-}),Rotation=90,Parent=playBtn})
+-- Example word chain display: tile row showing a mini chain
+local chainHolder = create("Frame",{Size=UDim2.new(0,0,0,44*UI_SCALE),
+	Position=UDim2.new(0.5,0,IS_MOBILE and 0.55 or 0.52,0),AnchorPoint=Vector2.new(0.5,0.5),
+	BackgroundTransparency=1,ZIndex=10,Parent=entranceGui})
+create("UIListLayout",{FillDirection=Enum.FillDirection.Horizontal,
+	HorizontalAlignment=Enum.HorizontalAlignment.Center,
+	Padding=UDim.new(0,6*UI_SCALE),Parent=chainHolder})
+local exampleWords = {"K","A","T","A"}
+local chainTiles = {}
+for i, ch in ipairs(exampleWords) do
+	local t = create("Frame",{Size=UDim2.new(0,40*UI_SCALE,0,44*UI_SCALE),
+		BackgroundColor3=Color3.fromRGB(35,35,42),BackgroundTransparency=0,
+		ZIndex=10,Parent=chainHolder})
+	create("UICorner",{CornerRadius=UDim.new(0,8),Parent=t})
+	create("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
+		Font=F.title,Text=ch,TextSize=26*UI_SCALE,
+		TextColor3=Color3.fromRGB(255,255,255),TextStrokeTransparency=1,
+		ZIndex=11,Parent=t})
+	table.insert(chainTiles, t)
+end
+
+-- Thin horizontal line separator below content
+local botLine = create("Frame",{Size=UDim2.new(0,0,0,1),Position=UDim2.new(0.5,0,0.6,0),
+	AnchorPoint=Vector2.new(0.5,0.5),BackgroundColor3=Color3.fromRGB(60,60,70),
+	BackgroundTransparency=0.5,ZIndex=5,Parent=entranceGui})
+
+-- Play button — clean, white on dark
+local playBtn = create("TextButton",{Size=UDim2.new(0,200*UI_SCALE,0,50*UI_SCALE),
+	Position=UDim2.new(0.5,0,0.68,0),AnchorPoint=Vector2.new(0.5,0.5),
+	BackgroundColor3=Color3.fromRGB(255,255,255),Font=F.big,Text="MAIN",TextSize=22*UI_SCALE,
+	TextColor3=Color3.fromRGB(10,10,15),AutoButtonColor=false,ClipsDescendants=true,ZIndex=12,Parent=entranceGui})
+create("UICorner",{CornerRadius=UDim.new(0,10),Parent=playBtn})
 
 -- Shimmer line on button
 local shimmer = create("Frame",{Size=UDim2.new(0.15,0,1,0),Position=UDim2.new(-0.2,0,0,0),
-	BackgroundColor3=Color3.fromRGB(255,255,255),BackgroundTransparency=0.7,
+	BackgroundColor3=Color3.fromRGB(255,255,255),BackgroundTransparency=0.6,
 	ZIndex=13,Parent=playBtn})
 create("UIGradient",{Transparency=NumberSequence.new({
-	NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.5,0.5),NumberSequenceKeypoint.new(1,1)
+	NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.5,0.4),NumberSequenceKeypoint.new(1,1)
 }),Parent=shimmer})
 task.spawn(function()
 	while entranceGui.Parent do
 		shimmer.Position=UDim2.new(-0.2,0,0,0)
-		tw(shimmer,{Position=UDim2.new(1.2,0,0,0)},1.2,Enum.EasingStyle.Linear)
-		task.wait(3)
-	end
-end)
-
--- Play button glow animation
-local playGlow = true
-task.spawn(function()
-	while playGlow do
-		tw(playBtn,{BackgroundColor3=GOLD_LIGHT},1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut)
-		task.wait(1)
-		tw(playBtn,{BackgroundColor3=GOLD},1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut)
-		task.wait(1)
-	end
-end)
-
--- Button press feedback
-playBtn.InputBegan:Connect(function(i)
-	if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-		tw(playBtn,{Size=UDim2.new(0,210*UI_SCALE,0,49*UI_SCALE)},0.05)
-	end
-end)
-playBtn.InputEnded:Connect(function(i)
-	if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-		tw(playBtn,{Size=UDim2.new(0,220*UI_SCALE,0,52*UI_SCALE)},0.1)
+		tw(shimmer,{Position=UDim2.new(1.2,0,0,0)},1,Enum.EasingStyle.Linear)
+		task.wait(3.5)
 	end
 end)
 
 -- Footer
 local footerLbl = create("TextLabel",{Size=UDim2.new(1,0,0,20*UI_SCALE),
-	Position=UDim2.new(0.5,0,0,295*UI_SCALE),AnchorPoint=Vector2.new(0.5,0),
+	Position=UDim2.new(0.5,0,0.76,0),AnchorPoint=Vector2.new(0.5,0.5),
 	BackgroundTransparency=1,Font=F.chain,Text="Perlihatkan kemahiran bahasamu",
-	TextSize=11*UI_SCALE,TextColor3=Color3.fromRGB(80,100,130),
-	TextStrokeTransparency=1,ZIndex=11,Parent=entrancePanel})
+	TextSize=11*UI_SCALE,TextColor3=Color3.fromRGB(80,80,90),
+	TextStrokeTransparency=1,ZIndex=10,Parent=entranceGui})
 
 -- Version
-create("TextLabel",{Size=UDim2.new(1,0,0,18),Position=UDim2.new(0.5,0,1,-12),
+create("TextLabel",{Size=UDim2.new(1,0,0,18),Position=UDim2.new(0.5,0,1,-10),
 	AnchorPoint=Vector2.new(0.5,1),BackgroundTransparency=1,Font=F.chain,
-	Text="v1.0",TextSize=10*UI_SCALE,TextColor3=Color3.fromRGB(40,55,80),
-	TextStrokeTransparency=1,ZIndex=11,Parent=entranceGui})
+	Text="v1.0",TextSize=10*UI_SCALE,TextColor3=Color3.fromRGB(50,50,58),
+	TextStrokeTransparency=1,ZIndex=10,Parent=entranceGui})
 
 -- Blur effect
 local blur = Instance.new("BlurEffect")
-blur.Size = 28
+blur.Size = 24
 blur.Name = "EntranceBlur"
 blur.Parent = Lighting
 
--- Color correction for warm royal tone
+-- Color correction
 local colorCorrect = Instance.new("ColorCorrectionEffect")
 colorCorrect.Name = "EntranceCC"
-colorCorrect.TintColor = Color3.fromRGB(200,210,240)
-colorCorrect.Brightness = -0.05
-colorCorrect.Contrast = 0.1
+colorCorrect.TintColor = Color3.fromRGB(210,210,215)
+colorCorrect.Brightness = -0.1
+colorCorrect.Contrast = 0.05
 colorCorrect.Parent = Lighting
 
 -- Freeze character
@@ -1039,68 +984,64 @@ local function unfreezeChar()
 end
 freezeChar()
 
--- Staggered entrance animation
-crownLbl.TextTransparency=1; titleLine1.TextTransparency=1; titleLine2.TextTransparency=1
+-- Staggered entrance animation — everything starts hidden
+titleLbl.TextTransparency=1
 entranceSub.TextTransparency=1; footerLbl.TextTransparency=1
 playBtn.BackgroundTransparency=1; playBtn.TextTransparency=1
-entrancePanel.BackgroundTransparency=1
-topOrnament.Size=UDim2.new(0,0,0,2); botOrnament.Size=UDim2.new(0,0,0,2)
-topDiamond.BackgroundTransparency=1; botDiamond.BackgroundTransparency=1
-divCenter.BackgroundTransparency=1
+topLine.BackgroundTransparency=1; botLine.BackgroundTransparency=1
+for _, t in ipairs(chainTiles) do t.BackgroundTransparency=1
+	t:FindFirstChildOfClass("TextLabel").TextTransparency=1 end
 
-task.delay(0.2,function() tw(entrancePanel,{BackgroundTransparency=0.1},0.8,Enum.EasingStyle.Quint) end)
-task.delay(0.3,function() tw(crownLbl,{TextTransparency=0},0.5,Enum.EasingStyle.Quint) end)
-task.delay(0.5,function() tw(titleLine1,{TextTransparency=0},0.6,Enum.EasingStyle.Quint) end)
-task.delay(0.8,function() tw(titleLine2,{TextTransparency=0},0.6,Enum.EasingStyle.Quint) end)
-task.delay(1.0,function()
-	tw(divCenter,{BackgroundTransparency=0},0.3)
-	tw(divLeft,{Size=UDim2.new(0,80,0,2)},0.8,Enum.EasingStyle.Quint)
-	tw(divRight,{Size=UDim2.new(0,80,0,2)},0.8,Enum.EasingStyle.Quint)
-	tw(topOrnament,{Size=UDim2.new(0.6,0,0,2)},1,Enum.EasingStyle.Quint)
-	tw(botOrnament,{Size=UDim2.new(0.6,0,0,2)},1,Enum.EasingStyle.Quint)
-	tw(topDiamond,{BackgroundTransparency=0},0.5)
-	tw(botDiamond,{BackgroundTransparency=0},0.5)
+-- Animate in
+task.delay(0.3,function() tw(titleLbl,{TextTransparency=0},0.7,Enum.EasingStyle.Quint) end)
+task.delay(0.6,function() tw(entranceSub,{TextTransparency=0},0.5,Enum.EasingStyle.Quint) end)
+task.delay(0.8,function()
+	tw(topLine,{Size=UDim2.new(0.5,0,0,1),BackgroundTransparency=0.5},0.8,Enum.EasingStyle.Quint)
+	tw(botLine,{Size=UDim2.new(0.5,0,0,1),BackgroundTransparency=0.5},0.8,Enum.EasingStyle.Quint)
 end)
-task.delay(1.2,function() tw(entranceSub,{TextTransparency=0},0.5) end)
-task.delay(1.5,function() tw(playBtn,{BackgroundTransparency=0,TextTransparency=0},0.5) end)
-task.delay(2.0,function() tw(footerLbl,{TextTransparency=0},0.5) end)
+task.delay(0.9,function()
+	for i, t in ipairs(chainTiles) do
+		task.delay((i-1)*0.1,function()
+			tw(t,{BackgroundTransparency=0},0.3,Enum.EasingStyle.Quint)
+			tw(t:FindFirstChildOfClass("TextLabel"),{TextTransparency=0},0.3,Enum.EasingStyle.Quint)
+		end)
+	end
+end)
+task.delay(1.5,function() tw(playBtn,{BackgroundTransparency=0,TextTransparency=0},0.5,Enum.EasingStyle.Quint) end)
+task.delay(1.8,function() tw(footerLbl,{TextTransparency=0},0.5) end)
 
--- Crown floating animation
-task.spawn(function()
-	while entranceGui.Parent do
-		tw(crownLbl,{Position=UDim2.new(0.5,0,0,12*UI_SCALE)},1.5,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut)
-		task.wait(1.5)
-		tw(crownLbl,{Position=UDim2.new(0.5,0,0,20*UI_SCALE)},1.5,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut)
-		task.wait(1.5)
+-- Button hover/press feedback
+playBtn.InputBegan:Connect(function(i)
+	if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+		tw(playBtn,{Size=UDim2.new(0,192*UI_SCALE,0,47*UI_SCALE)},0.05)
+	end
+end)
+playBtn.InputEnded:Connect(function(i)
+	if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+		tw(playBtn,{Size=UDim2.new(0,200*UI_SCALE,0,50*UI_SCALE)},0.1)
 	end
 end)
 
 -- Play button click
 playBtn.MouseButton1Click:Connect(function()
-	playGlow = false
-	-- Flash gold
-	tw(playBtn,{Size=UDim2.new(0,240*UI_SCALE,0,56*UI_SCALE),BackgroundColor3=GOLD_LIGHT},0.1)
-	screenFlash(GOLD,0.7,0.3)
-	task.wait(0.15)
-	-- Royal fade out
-	tw(entranceBg,{BackgroundTransparency=1},0.6)
-	tw(entrancePanel,{BackgroundTransparency=1,Position=UDim2.new(0.5,0,0.46,0)},0.5,Enum.EasingStyle.Quad,Enum.EasingDirection.In)
-	tw(crownLbl,{TextTransparency=1,Position=UDim2.new(0.5,0,0,-10*UI_SCALE)},0.4,Enum.EasingStyle.Back,Enum.EasingDirection.In)
-	tw(titleLine1,{TextTransparency=1},0.4)
-	tw(titleLine2,{TextTransparency=1},0.4)
-	tw(divLeft,{Size=UDim2.new(0,0,0,2)},0.3)
-	tw(divRight,{Size=UDim2.new(0,0,0,2)},0.3)
-	tw(divCenter,{BackgroundTransparency=1},0.3)
+	-- Flash white
+	screenFlash(Color3.fromRGB(255,255,255),0.6,0.3)
+	task.wait(0.1)
+	-- Fade out everything
+	tw(entranceBg,{BackgroundTransparency=1},0.5)
+	tw(titleLbl,{TextTransparency=1},0.3)
 	tw(entranceSub,{TextTransparency=1},0.3)
 	tw(playBtn,{TextTransparency=1,BackgroundTransparency=1},0.3)
 	tw(footerLbl,{TextTransparency=1},0.2)
-	tw(topOrnament,{Size=UDim2.new(0,0,0,2)},0.4)
-	tw(botOrnament,{Size=UDim2.new(0,0,0,2)},0.4)
-	tw(topDiamond,{BackgroundTransparency=1},0.3)
-	tw(botDiamond,{BackgroundTransparency=1},0.3)
-	tw(blur,{Size=0},0.6)
-	tw(colorCorrect,{Brightness=0,Contrast=0},0.5)
-	task.wait(0.6)
+	tw(topLine,{Size=UDim2.new(0,0,0,1)},0.4,Enum.EasingStyle.Quint)
+	tw(botLine,{Size=UDim2.new(0,0,0,1)},0.4,Enum.EasingStyle.Quint)
+	for _, t in ipairs(chainTiles) do
+		tw(t,{BackgroundTransparency=1},0.3)
+		tw(t:FindFirstChildOfClass("TextLabel"),{TextTransparency=1},0.3)
+	end
+	tw(blur,{Size=0},0.5)
+	tw(colorCorrect,{Brightness=0,Contrast=0},0.4)
+	task.wait(0.5)
 	unfreezeChar()
 	entranceGui:Destroy()
 	blur:Destroy()
